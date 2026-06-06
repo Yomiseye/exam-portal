@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
+use App\Models\ExamAssignment;
 use App\Models\Exam;
 use App\Models\ExamRetakePermission;
 use App\Models\Option;
@@ -27,12 +28,16 @@ class ExamController extends Controller
 
         $exam->load('categories');
 
+        $assignment = $this->assignment(request(), $exam);
+        abort_unless($assignment, 404);
+
         $activeAttempt = $this->activeAttempt(request(), $exam);
         $latestCompletedAttempt = $this->latestCompletedAttempt(request(), $exam);
         $unusedRetakePermission = $this->unusedRetakePermission(request(), $exam);
 
         return view('student.exams.show', compact(
             'exam',
+            'assignment',
             'activeAttempt',
             'latestCompletedAttempt',
             'unusedRetakePermission',
@@ -46,6 +51,9 @@ class ExamController extends Controller
     {
         abort_unless($exam->is_active, 404);
 
+        $assignment = $this->assignment($request, $exam);
+        abort_unless($assignment, 404);
+
         $activeAttempt = $this->activeAttempt($request, $exam);
 
         if ($activeAttempt && ! $activeAttempt->isExpired()) {
@@ -56,6 +64,12 @@ class ExamController extends Controller
             $this->finalizeAttempt($activeAttempt);
 
             return redirect()->route('student.attempts.result', $activeAttempt);
+        }
+
+        if (! $assignment->isAvailable()) {
+            return back()->withErrors([
+                'exam' => 'This exam is not available for your account at this time.',
+            ]);
         }
 
         $latestCompletedAttempt = $this->latestCompletedAttempt($request, $exam);
@@ -328,6 +342,14 @@ class ExamController extends Controller
             ->where('exam_id', $exam->id)
             ->whereNull('used_at')
             ->oldest()
+            ->first();
+    }
+
+    private function assignment(Request $request, Exam $exam): ?ExamAssignment
+    {
+        return $request->user()
+            ->examAssignments()
+            ->where('exam_id', $exam->id)
             ->first();
     }
 }

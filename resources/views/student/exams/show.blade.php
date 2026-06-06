@@ -19,6 +19,13 @@
                         <div class="mb-6 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800">
                             You already have this exam in progress. Continue your attempt before starting anything new.
                         </div>
+                    @elseif (! $assignment->isAvailable())
+                        <div class="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                            This exam is assigned to you, but it is only available from
+                            {{ $assignment->available_from->format('M j, Y g:i A') }}
+                            to
+                            {{ $assignment->available_until->format('M j, Y g:i A') }}.
+                        </div>
                     @elseif ($latestCompletedAttempt && $unusedRetakePermission)
                         <div class="mb-6 rounded-md bg-blue-50 p-4 text-sm text-blue-800">
                             A retake has been granted for this exam. Starting now will use that retake permission.
@@ -50,6 +57,15 @@
                         </div>
                     </div>
 
+                    <div class="mt-6 rounded-md bg-gray-50 p-4">
+                        <div class="text-sm font-medium text-gray-700">Availability</div>
+                        <div class="mt-1 text-sm text-gray-600">
+                            {{ $assignment->available_from->format('M j, Y g:i A') }}
+                            to
+                            {{ $assignment->available_until->format('M j, Y g:i A') }}
+                        </div>
+                    </div>
+
                     <div class="mt-6">
                         <div class="text-sm font-medium text-gray-700">Categories</div>
                         <div class="mt-2 flex flex-wrap gap-2">
@@ -65,6 +81,10 @@
                             <a href="{{ route('student.attempts.show', $activeAttempt) }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
                                 Continue Attempt
                             </a>
+                        @elseif (! $assignment->isAvailable())
+                            <button type="button" disabled class="inline-flex items-center rounded-md bg-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white">
+                                Not Available
+                            </button>
                         @elseif ($latestCompletedAttempt && ! $unusedRetakePermission)
                             <a href="{{ route('student.attempts.result', $latestCompletedAttempt) }}" class="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
                                 View Result

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ResultController;
+use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
@@ -24,6 +25,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::resource('students', StudentController::class)->only(['index', 'create', 'store']);
+        Route::post('/students/{student}/assignments', [StudentController::class, 'assignExam'])->name('students.assignments.store');
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::resource('questions', QuestionController::class)->except(['show']);
         Route::resource('exams', ExamController::class)->except(['show']);

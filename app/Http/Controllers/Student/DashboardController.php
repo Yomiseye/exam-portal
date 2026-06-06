@@ -14,8 +14,12 @@ class DashboardController extends Controller
     public function __invoke(): View
     {
         $exams = Exam::query()
-            ->with('categories')
+            ->with([
+                'categories',
+                'assignments' => fn ($query) => $query->where('user_id', request()->user()->id),
+            ])
             ->where('is_active', true)
+            ->whereHas('assignments', fn ($query) => $query->where('user_id', request()->user()->id))
             ->latest()
             ->get();
 
@@ -35,9 +39,12 @@ class DashboardController extends Controller
         $exams->each(function (Exam $exam) use ($latestAttemptsByExam, $unusedRetakesByExam): void {
             $latestAttempt = $latestAttemptsByExam->get($exam->id);
             $unusedRetake = $unusedRetakesByExam->get($exam->id);
+            $assignment = $exam->assignments->first();
 
             $status = match (true) {
                 $latestAttempt?->status === 'in_progress' => 'in_progress',
+                $assignment?->available_from->isFuture() => 'scheduled',
+                $assignment?->available_until->isPast() => 'closed',
                 $latestAttempt !== null && $unusedRetake !== null => 'retake_granted',
                 $latestAttempt !== null => 'completed',
                 default => 'available',
@@ -45,6 +52,7 @@ class DashboardController extends Controller
 
             $exam->setAttribute('student_status', $status);
             $exam->setAttribute('latest_attempt', $latestAttempt);
+            $exam->setAttribute('assignment', $assignment);
         });
 
         $recentAttempts = $attempts->take(5);

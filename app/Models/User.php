@@ -46,6 +46,18 @@ class User extends Authenticatable
         return $this->hasMany(Attempt::class);
     }
 
+    public function examAssignments(): HasMany
+    {
+        return $this->hasMany(ExamAssignment::class);
+    }
+
+    public function assignedExams()
+    {
+        return $this->belongsToMany(Exam::class, 'exam_assignments')
+            ->withPivot(['assigned_by', 'available_from', 'available_until'])
+            ->withTimestamps();
+    }
+
     public function retakePermissions(): HasMany
     {
         return $this->hasMany(ExamRetakePermission::class);

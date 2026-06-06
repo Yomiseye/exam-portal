@@ -5,6 +5,7 @@ namespace Tests\Feature\Student;
 use App\Models\Attempt;
 use App\Models\Category;
 use App\Models\Exam;
+use App\Models\ExamAssignment;
 use App\Models\ExamRetakePermission;
 use App\Models\Question;
 use App\Models\User;
@@ -19,6 +20,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->get(route('student.dashboard'))
@@ -40,6 +42,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam))
@@ -58,6 +61,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -77,6 +81,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -94,6 +99,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 1, totalQuestions: 2);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->from(route('student.exams.show', $exam))
@@ -108,6 +114,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2, passMark: 50);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -141,6 +148,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         $attempt = Attempt::create([
             'user_id' => $student->id,
@@ -174,6 +182,7 @@ class ExamTakingTest extends TestCase
         $admin = User::factory()->admin()->create();
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         Attempt::create([
             'user_id' => $student->id,
@@ -210,6 +219,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -233,6 +243,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2, passMark: 50);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -268,6 +279,7 @@ class ExamTakingTest extends TestCase
         $owner = User::factory()->student()->create();
         $otherStudent = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($owner, $exam);
 
         $this->actingAs($owner)
             ->post(route('student.exams.start', $exam));
@@ -290,6 +302,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -314,6 +327,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2, passMark: 60);
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -342,6 +356,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions();
+        $this->assignExam($student, $exam);
 
         $this->actingAs($student)
             ->post(route('student.exams.start', $exam));
@@ -378,15 +393,53 @@ class ExamTakingTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_student_only_sees_assigned_exams_on_dashboard(): void
+    {
+        $student = User::factory()->student()->create();
+        $assignedExam = $this->examWithQuestions();
+        $unassignedExam = $this->examWithQuestions();
+
+        $this->assignExam($student, $assignedExam);
+
+        $this->actingAs($student)
+            ->get(route('student.dashboard'))
+            ->assertOk()
+            ->assertSee($assignedExam->title)
+            ->assertDontSee($unassignedExam->title);
+    }
+
+    public function test_student_cannot_start_exam_outside_assignment_window(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions();
+
+        $this->assignExam(
+            student: $student,
+            exam: $exam,
+            availableFrom: now()->addDay(),
+            availableUntil: now()->addDays(2),
+        );
+
+        $this->actingAs($student)
+            ->from(route('student.exams.show', $exam))
+            ->post(route('student.exams.start', $exam))
+            ->assertRedirect(route('student.exams.show', $exam))
+            ->assertSessionHasErrors('exam');
+
+        $this->assertDatabaseCount('attempts', 0);
+    }
+
     private function examWithQuestions(int $questionCount = 1, int $totalQuestions = 1, int $passMark = 50): Exam
     {
+        $suffix = (string) str()->uuid();
+
         $category = Category::create([
-            'name' => 'Mathematics',
+            'name' => 'Mathematics '.$suffix,
             'is_active' => true,
         ]);
 
         $exam = Exam::create([
-            'title' => 'Aptitude Test',
+            'title' => 'Aptitude Test '.$suffix,
             'duration_minutes' => 30,
             'total_questions' => $totalQuestions,
             'pass_mark' => $passMark,
@@ -412,5 +465,22 @@ class ExamTakingTest extends TestCase
         }
 
         return $exam;
+    }
+
+    private function assignExam(
+        User $student,
+        Exam $exam,
+        $availableFrom = null,
+        $availableUntil = null,
+    ): ExamAssignment {
+        $admin = User::factory()->admin()->create();
+
+        return ExamAssignment::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'assigned_by' => $admin->id,
+            'available_from' => $availableFrom ?? now()->subMinute(),
+            'available_until' => $availableUntil ?? now()->addDay(),
+        ]);
     }
 }
