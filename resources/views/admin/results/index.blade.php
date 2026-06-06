@@ -7,6 +7,12 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            @if (session('status'))
+                <div class="mb-6 rounded-md bg-green-50 p-4 text-sm text-green-700">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             <form method="GET" action="{{ route('admin.results.index') }}" class="mb-6 grid gap-4 rounded-md bg-white p-4 shadow-sm md:grid-cols-[1fr,1fr,auto]">
                 <div>
                     <x-input-label for="exam_id" value="Exam" />
@@ -84,7 +90,25 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $attempt->started_at->format('M j, Y g:i A') }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $attempt->submitted_at?->format('M j, Y g:i A') ?? '-' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ route('admin.results.show', $attempt) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                        @php
+                                            $hasUnusedRetake = $attempt->user->retakePermissions
+                                                ->contains(fn ($permission) => $permission->exam_id === $attempt->exam_id && $permission->used_at === null);
+                                        @endphp
+
+                                        <div class="flex justify-end gap-3">
+                                            <a href="{{ route('admin.results.show', $attempt) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+
+                                            @if ($attempt->status !== 'in_progress' && ! $hasUnusedRetake)
+                                                <form method="POST" action="{{ route('admin.results.retake', $attempt) }}">
+                                                    @csrf
+                                                    <button type="submit" class="text-green-700 hover:text-green-900">
+                                                        Grant retake
+                                                    </button>
+                                                </form>
+                                            @elseif ($hasUnusedRetake)
+                                                <span class="text-gray-400">Retake granted</span>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @empty

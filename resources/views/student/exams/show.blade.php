@@ -15,6 +15,20 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
+                    @if ($activeAttempt)
+                        <div class="mb-6 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800">
+                            You already have this exam in progress. Continue your attempt before starting anything new.
+                        </div>
+                    @elseif ($latestCompletedAttempt && $unusedRetakePermission)
+                        <div class="mb-6 rounded-md bg-blue-50 p-4 text-sm text-blue-800">
+                            A retake has been granted for this exam. Starting now will use that retake permission.
+                        </div>
+                    @elseif ($latestCompletedAttempt)
+                        <div class="mb-6 rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                            You have already completed this exam. You can retake it only after an admin grants permission.
+                        </div>
+                    @endif
+
                     @if ($exam->description)
                         <p class="text-gray-700">{{ $exam->description }}</p>
                     @endif
@@ -47,9 +61,19 @@
 
                     <form method="POST" action="{{ route('student.exams.start', $exam) }}" class="mt-8">
                         @csrf
-                        <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
-                            Start Exam
-                        </button>
+                        @if ($activeAttempt)
+                            <a href="{{ route('student.attempts.show', $activeAttempt) }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                Continue Attempt
+                            </a>
+                        @elseif ($latestCompletedAttempt && ! $unusedRetakePermission)
+                            <a href="{{ route('student.attempts.result', $latestCompletedAttempt) }}" class="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
+                                View Result
+                            </a>
+                        @else
+                            <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                {{ $unusedRetakePermission ? 'Start Retake' : 'Start Exam' }}
+                            </button>
+                        @endif
                     </form>
                 </div>
             </div>

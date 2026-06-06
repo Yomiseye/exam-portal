@@ -49,4 +49,9 @@ class Exam extends Model
     {
         return $this->hasMany(Attempt::class);
     }
+
+    public function retakePermissions(): HasMany
+    {
+        return $this->hasMany(ExamRetakePermission::class);
+    }
 }

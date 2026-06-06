@@ -5,6 +5,7 @@ namespace Tests\Feature\Student;
 use App\Models\Attempt;
 use App\Models\Category;
 use App\Models\Exam;
+use App\Models\ExamRetakePermission;
 use App\Models\Question;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -134,6 +135,75 @@ class ExamTakingTest extends TestCase
         $this->assertSame(50, $attempt->percentage);
         $this->assertSame('passed', $attempt->status);
         $this->assertNotNull($attempt->submitted_at);
+    }
+
+    public function test_student_cannot_start_completed_exam_without_retake_permission(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions();
+
+        $attempt = Attempt::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'score' => 1,
+            'total_questions' => 1,
+            'percentage' => 100,
+            'status' => 'passed',
+            'started_at' => now()->subMinutes(5),
+            'expires_at' => now()->addMinutes(25),
+            'submitted_at' => now(),
+        ]);
+
+        $attempt->answers()->create([
+            'question_id' => Question::firstOrFail()->id,
+            'selected_option_id' => Question::firstOrFail()->options()->where('is_correct', true)->firstOrFail()->id,
+            'is_correct' => true,
+        ]);
+
+        $this->actingAs($student)
+            ->from(route('student.exams.show', $exam))
+            ->post(route('student.exams.start', $exam))
+            ->assertRedirect(route('student.exams.show', $exam))
+            ->assertSessionHasErrors('exam');
+
+        $this->assertDatabaseCount('attempts', 1);
+    }
+
+    public function test_student_can_start_retake_with_unused_permission_and_permission_is_consumed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions();
+
+        Attempt::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'score' => 0,
+            'total_questions' => 1,
+            'percentage' => 0,
+            'status' => 'failed',
+            'started_at' => now()->subMinutes(5),
+            'expires_at' => now()->addMinutes(25),
+            'submitted_at' => now(),
+        ]);
+
+        $permission = ExamRetakePermission::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'granted_by' => $admin->id,
+            'reason' => 'Network interruption.',
+        ]);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam))
+            ->assertRedirect();
+
+        $permission->refresh();
+
+        $this->assertNotNull($permission->used_at);
+        $this->assertNotNull($permission->used_attempt_id);
+        $this->assertSame(2, Attempt::count());
+        $this->assertSame('in_progress', Attempt::latest('id')->firstOrFail()->status);
     }
 
     public function test_student_answer_is_saved_before_final_submit(): void

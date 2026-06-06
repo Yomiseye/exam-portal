@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('exams', ExamController::class)->except(['show']);
         Route::get('/results', [ResultController::class, 'index'])->name('results.index');
         Route::get('/results/{attempt}', [ResultController::class, 'show'])->name('results.show');
+        Route::post('/results/{attempt}/retake', [ResultController::class, 'grantRetake'])->name('results.retake');
     });
 
 Route::middleware(['auth', 'verified', 'role:student'])

@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Attempt;
 use App\Models\Category;
 use App\Models\Exam;
+use App\Models\ExamRetakePermission;
 use App\Models\Question;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,6 +65,44 @@ class ResultReportingTest extends TestCase
             ->assertSee('Selected Answer')
             ->assertSee('Correct Answer')
             ->assertSee('Incorrect');
+    }
+
+    public function test_admin_can_grant_one_unused_retake_permission(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $attempt = $this->submittedAttempt();
+
+        $this->actingAs($admin)
+            ->post(route('admin.results.retake', $attempt), [
+                'reason' => 'Network interruption.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('exam_retake_permissions', [
+            'user_id' => $attempt->user_id,
+            'exam_id' => $attempt->exam_id,
+            'granted_by' => $admin->id,
+            'reason' => 'Network interruption.',
+            'used_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.results.retake', $attempt))
+            ->assertRedirect();
+
+        $this->assertSame(1, ExamRetakePermission::count());
+    }
+
+    public function test_admin_cannot_grant_retake_for_in_progress_attempt(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $attempt = $this->inProgressAttempt();
+
+        $this->actingAs($admin)
+            ->post(route('admin.results.retake', $attempt))
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('exam_retake_permissions', 0);
     }
 
     public function test_admin_dashboard_shows_submitted_attempt_count(): void

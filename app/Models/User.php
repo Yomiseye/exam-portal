@@ -45,4 +45,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Attempt::class);
     }
+
+    public function retakePermissions(): HasMany
+    {
+        return $this->hasMany(ExamRetakePermission::class);
+    }
+
+    public function grantedRetakePermissions(): HasMany
+    {
+        return $this->hasMany(ExamRetakePermission::class, 'granted_by');
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
 use App\Models\Exam;
+use App\Models\ExamRetakePermission;
 use App\Models\Option;
 use App\Models\Question;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +27,16 @@ class ExamController extends Controller
 
         $exam->load('categories');
 
-        return view('student.exams.show', compact('exam'));
+        $activeAttempt = $this->activeAttempt(request(), $exam);
+        $latestCompletedAttempt = $this->latestCompletedAttempt(request(), $exam);
+        $unusedRetakePermission = $this->unusedRetakePermission(request(), $exam);
+
+        return view('student.exams.show', compact(
+            'exam',
+            'activeAttempt',
+            'latestCompletedAttempt',
+            'unusedRetakePermission',
+        ));
     }
 
     /**
@@ -36,12 +46,7 @@ class ExamController extends Controller
     {
         abort_unless($exam->is_active, 404);
 
-        $activeAttempt = $request->user()
-            ->attempts()
-            ->where('exam_id', $exam->id)
-            ->where('status', 'in_progress')
-            ->latest()
-            ->first();
+        $activeAttempt = $this->activeAttempt($request, $exam);
 
         if ($activeAttempt && ! $activeAttempt->isExpired()) {
             return redirect()->route('student.attempts.show', $activeAttempt);
@@ -51,6 +56,15 @@ class ExamController extends Controller
             $this->finalizeAttempt($activeAttempt);
 
             return redirect()->route('student.attempts.result', $activeAttempt);
+        }
+
+        $latestCompletedAttempt = $this->latestCompletedAttempt($request, $exam);
+        $unusedRetakePermission = $this->unusedRetakePermission($request, $exam);
+
+        if ($latestCompletedAttempt && ! $unusedRetakePermission) {
+            return back()->withErrors([
+                'exam' => 'You have already completed this exam. Ask an admin to grant a retake if you need another attempt.',
+            ]);
         }
 
         $questions = $this->availableQuestions($exam);
@@ -63,7 +77,7 @@ class ExamController extends Controller
 
         $selectedQuestions = $questions->take($exam->total_questions);
 
-        $attempt = DB::transaction(function () use ($request, $exam, $selectedQuestions): Attempt {
+        $attempt = DB::transaction(function () use ($request, $exam, $selectedQuestions, $unusedRetakePermission): Attempt {
             $attempt = Attempt::create([
                 'user_id' => $request->user()->id,
                 'exam_id' => $exam->id,
@@ -77,6 +91,13 @@ class ExamController extends Controller
                     ->map(fn (Question $question) => ['question_id' => $question->id])
                     ->all(),
             );
+
+            if ($unusedRetakePermission) {
+                $unusedRetakePermission->update([
+                    'used_attempt_id' => $attempt->id,
+                    'used_at' => now(),
+                ]);
+            }
 
             return $attempt;
         });
@@ -278,5 +299,35 @@ class ExamController extends Controller
     private function submittedOrSavedOptionId(Request $request, AttemptAnswer $answer): mixed
     {
         return $request->input("answers.{$answer->question_id}", $answer->selected_option_id);
+    }
+
+    private function activeAttempt(Request $request, Exam $exam): ?Attempt
+    {
+        return $request->user()
+            ->attempts()
+            ->where('exam_id', $exam->id)
+            ->where('status', 'in_progress')
+            ->latest()
+            ->first();
+    }
+
+    private function latestCompletedAttempt(Request $request, Exam $exam): ?Attempt
+    {
+        return $request->user()
+            ->attempts()
+            ->where('exam_id', $exam->id)
+            ->whereIn('status', ['passed', 'failed'])
+            ->latest()
+            ->first();
+    }
+
+    private function unusedRetakePermission(Request $request, Exam $exam): ?ExamRetakePermission
+    {
+        return $request->user()
+            ->retakePermissions()
+            ->where('exam_id', $exam->id)
+            ->whereNull('used_at')
+            ->oldest()
+            ->first();
     }
 }

@@ -32,11 +32,41 @@
                                             <div class="mt-3 text-sm text-gray-500">
                                                 {{ $exam->categories->pluck('name')->join(', ') }}
                                             </div>
+
+                                            <div class="mt-3">
+                                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{
+                                                    match ($exam->student_status) {
+                                                        'available' => 'bg-green-100 text-green-800',
+                                                        'retake_granted' => 'bg-blue-100 text-blue-800',
+                                                        'in_progress' => 'bg-yellow-100 text-yellow-800',
+                                                        default => 'bg-gray-100 text-gray-700',
+                                                    }
+                                                }}">
+                                                    {{
+                                                        match ($exam->student_status) {
+                                                            'available' => 'Available',
+                                                            'retake_granted' => 'Retake granted',
+                                                            'in_progress' => 'In progress',
+                                                            default => 'Completed',
+                                                        }
+                                                    }}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <a href="{{ route('student.exams.show', $exam) }}" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
-                                            View Exam
-                                        </a>
+                                        @if ($exam->student_status === 'in_progress')
+                                            <a href="{{ route('student.attempts.show', $exam->latest_attempt) }}" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                                Continue
+                                            </a>
+                                        @elseif ($exam->student_status === 'completed')
+                                            <a href="{{ route('student.attempts.result', $exam->latest_attempt) }}" class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
+                                                View Result
+                                            </a>
+                                        @else
+                                            <a href="{{ route('student.exams.show', $exam) }}" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                                {{ $exam->student_status === 'retake_granted' ? 'Retake Exam' : 'View Exam' }}
+                                            </a>
+                                        @endif
                                     </div>
                                 </div>
                             @empty
