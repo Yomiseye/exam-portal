@@ -84,7 +84,7 @@
                     submitted: false,
                     current: {{ $initialQuestionIndex }},
                     total: {{ $attempt->answers->count() }},
-                    async saveAnswer(questionId, optionId) {
+                    async saveAnswer(questionId, answer) {
                         const response = await fetch('{{ route('student.attempts.answers.save', $attempt) }}', {
                             method: 'PATCH',
                             headers: {
@@ -94,7 +94,7 @@
                             },
                             body: JSON.stringify({
                                 question_id: questionId,
-                                option_id: optionId,
+                                answer,
                             }),
                         });
 
@@ -105,6 +105,17 @@
                                 window.location.href = data.redirect;
                             }
                         }
+                    },
+                    checkboxValues(questionId) {
+                        return Array.from(document.querySelectorAll(`[data-answer-group='${questionId}']:checked`))
+                            .map((input) => input.value);
+                    },
+                    matchingValues(questionId) {
+                        return Array.from(document.querySelectorAll(`[data-matching-group='${questionId}']`))
+                            .reduce((values, input) => {
+                                values[input.dataset.optionId] = input.value;
+                                return values;
+                            }, {});
                     },
                     next() {
                         if (this.current < this.total - 1) {
@@ -158,19 +169,67 @@
                         <div class="mt-2 text-gray-900">{{ $answer->question->question_text }}</div>
 
                         <div class="mt-5 space-y-3">
-                            @foreach ($answer->question->options as $option)
-                                <label class="question-option flex items-start rounded-md border border-gray-200 p-3">
-                                    <input
-                                        type="radio"
-                                        name="answers[{{ $answer->question_id }}]"
-                                        value="{{ $option->id }}"
-                                        @checked((string) old("answers.{$answer->question_id}", $answer->selected_option_id) === (string) $option->id)
-                                        @change="saveAnswer({{ $answer->question_id }}, {{ $option->id }})"
-                                        class="mt-1 border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                                    >
-                                    <span class="ms-3 text-sm text-gray-700">{{ $option->option_text }}</span>
-                                </label>
-                            @endforeach
+                            @if (in_array($answer->question->question_type, [\App\Models\Question::TYPE_SINGLE_CHOICE, \App\Models\Question::TYPE_TRUE_FALSE], true))
+                                @foreach ($answer->question->options as $option)
+                                    <label class="question-option flex items-start rounded-md border border-gray-200 p-3">
+                                        <input
+                                            type="radio"
+                                            name="answers[{{ $answer->question_id }}]"
+                                            value="{{ $option->id }}"
+                                            @checked((string) old("answers.{$answer->question_id}", $answer->selected_option_id) === (string) $option->id)
+                                            @change="saveAnswer({{ $answer->question_id }}, {{ $option->id }})"
+                                            class="mt-1 border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                        >
+                                        <span class="ms-3 text-sm text-gray-700">{{ $option->option_text }}</span>
+                                    </label>
+                                @endforeach
+                            @elseif ($answer->question->question_type === \App\Models\Question::TYPE_MULTIPLE_CHOICE)
+                                @php
+                                    $selectedOptionIds = collect(old("answers.{$answer->question_id}", $answer->selected_option_ids ?? []))
+                                        ->map(fn ($id) => (string) $id)
+                                        ->all();
+                                @endphp
+
+                                @foreach ($answer->question->options as $option)
+                                    <label class="question-option flex items-start rounded-md border border-gray-200 p-3">
+                                        <input
+                                            type="checkbox"
+                                            name="answers[{{ $answer->question_id }}][]"
+                                            value="{{ $option->id }}"
+                                            data-answer-group="{{ $answer->question_id }}"
+                                            @checked(in_array((string) $option->id, $selectedOptionIds, true))
+                                            @change="saveAnswer({{ $answer->question_id }}, checkboxValues({{ $answer->question_id }}))"
+                                            class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                        >
+                                        <span class="ms-3 text-sm text-gray-700">{{ $option->option_text }}</span>
+                                    </label>
+                                @endforeach
+                            @else
+                                @php
+                                    $matchingAnswer = old("answers.{$answer->question_id}", $answer->matching_answer ?? []);
+                                    $matchChoices = $answer->question->options->pluck('match_text')->filter()->values();
+                                @endphp
+
+                                @foreach ($answer->question->options as $option)
+                                    <div class="rounded-md border border-gray-200 p-3">
+                                        <div class="text-sm font-medium text-gray-700">{{ $option->option_text }}</div>
+                                        <select
+                                            name="answers[{{ $answer->question_id }}][{{ $option->id }}]"
+                                            data-matching-group="{{ $answer->question_id }}"
+                                            data-option-id="{{ $option->id }}"
+                                            @change="saveAnswer({{ $answer->question_id }}, matchingValues({{ $answer->question_id }}))"
+                                            class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                        >
+                                            <option value="">Choose match</option>
+                                            @foreach ($matchChoices as $matchChoice)
+                                                <option value="{{ $matchChoice }}" @selected(($matchingAnswer[$option->id] ?? '') === $matchChoice)>
+                                                    {{ $matchChoice }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @endforeach
+                            @endif
                         </div>
 
                         <x-input-error class="mt-3" :messages="$errors->get('answers.'.$answer->question_id)" />

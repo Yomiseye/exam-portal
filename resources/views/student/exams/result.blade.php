@@ -42,6 +42,14 @@
             @if ($attempt->exam->show_corrections)
                 <div class="mt-6 space-y-4">
                     @foreach ($attempt->answers as $answer)
+                        @php
+                            $questionType = $answer->question->question_type;
+                            $selectedOptionIds = collect($answer->selected_option_ids ?? [])->map(fn ($id) => (int) $id)->all();
+                            $selectedOptions = $answer->question->options->whereIn('id', $selectedOptionIds);
+                            $correctOptions = $answer->question->options->where('is_correct', true);
+                            $matchingAnswer = $answer->matching_answer ?? [];
+                        @endphp
+
                         <div class="bg-white p-6 shadow-sm sm:rounded-lg">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
@@ -55,12 +63,34 @@
                             </div>
 
                             <div class="mt-4 text-sm text-gray-700">
-                                Your answer: {{ $answer->selectedOption?->option_text ?? 'No answer' }}
+                                <div class="font-medium text-gray-500">Your answer</div>
+
+                                @if ($questionType === \App\Models\Question::TYPE_MULTIPLE_CHOICE)
+                                    <div class="mt-1">{{ $selectedOptions->pluck('option_text')->implode(', ') ?: 'No answer' }}</div>
+                                @elseif ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                    <div class="mt-2 space-y-1">
+                                        @foreach ($answer->question->options as $option)
+                                            <div>{{ $option->option_text }}: {{ $matchingAnswer[$option->id] ?? 'No answer' }}</div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="mt-1">{{ $answer->selectedOption?->option_text ?? 'No answer' }}</div>
+                                @endif
                             </div>
 
                             @if (! $answer->is_correct)
-                                <div class="mt-2 text-sm text-gray-700">
-                                    Correct answer: {{ $answer->question->options->firstWhere('is_correct', true)?->option_text }}
+                                <div class="mt-3 text-sm text-gray-700">
+                                    <div class="font-medium text-gray-500">Correct answer</div>
+
+                                    @if ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                        <div class="mt-2 space-y-1">
+                                            @foreach ($answer->question->options as $option)
+                                                <div>{{ $option->option_text }}: {{ $option->match_text }}</div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="mt-1">{{ $correctOptions->pluck('option_text')->implode(', ') }}</div>
+                                    @endif
                                 </div>
                             @endif
 

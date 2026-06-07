@@ -100,6 +100,14 @@
 
             <div class="space-y-4">
                 @foreach ($attempt->answers as $answer)
+                    @php
+                        $questionType = $answer->question->question_type;
+                        $selectedOptionIds = collect($answer->selected_option_ids ?? [])->map(fn ($id) => (int) $id)->all();
+                        $selectedOptions = $answer->question->options->whereIn('id', $selectedOptionIds);
+                        $correctOptions = $answer->question->options->where('is_correct', true);
+                        $matchingAnswer = $answer->matching_answer ?? [];
+                    @endphp
+
                     <div class="bg-white p-6 shadow-sm sm:rounded-lg">
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -115,12 +123,34 @@
                         <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             <div class="rounded-md bg-gray-50 p-3">
                                 <div class="font-medium text-gray-500">Selected Answer</div>
-                                <div class="mt-1 text-gray-900">{{ $answer->selectedOption?->option_text ?? 'No answer selected' }}</div>
+                                <div class="mt-1 text-gray-900">
+                                    @if ($questionType === \App\Models\Question::TYPE_MULTIPLE_CHOICE)
+                                        {{ $selectedOptions->pluck('option_text')->implode(', ') ?: 'No answer selected' }}
+                                    @elseif ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                        <div class="space-y-1">
+                                            @foreach ($answer->question->options as $option)
+                                                <div>{{ $option->option_text }}: {{ $matchingAnswer[$option->id] ?? 'No answer selected' }}</div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        {{ $answer->selectedOption?->option_text ?? 'No answer selected' }}
+                                    @endif
+                                </div>
                             </div>
 
                             <div class="rounded-md bg-gray-50 p-3">
                                 <div class="font-medium text-gray-500">Correct Answer</div>
-                                <div class="mt-1 text-gray-900">{{ $answer->question->options->firstWhere('is_correct', true)?->option_text }}</div>
+                                <div class="mt-1 text-gray-900">
+                                    @if ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                        <div class="space-y-1">
+                                            @foreach ($answer->question->options as $option)
+                                                <div>{{ $option->option_text }}: {{ $option->match_text }}</div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        {{ $correctOptions->pluck('option_text')->implode(', ') }}
+                                    @endif
+                                </div>
                             </div>
                         </div>
 

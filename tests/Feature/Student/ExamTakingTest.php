@@ -352,6 +352,117 @@ class ExamTakingTest extends TestCase
         $this->assertSame('failed', $attempt->status);
     }
 
+    public function test_student_can_submit_multiple_correct_question(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions(passMark: 100);
+        $this->assignExam($student, $exam);
+
+        $question = Question::firstOrFail();
+        $question->update(['question_type' => Question::TYPE_MULTIPLE_CHOICE]);
+        $question->options()->delete();
+        $question->options()->createMany([
+            ['option_text' => 'Solid', 'is_correct' => true],
+            ['option_text' => 'Stone', 'is_correct' => false],
+            ['option_text' => 'Liquid', 'is_correct' => true],
+        ]);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam));
+
+        $attempt = Attempt::with('answers.question.options')->firstOrFail();
+        $answer = $attempt->answers->first();
+        $correctOptionIds = $answer->question->options
+            ->where('is_correct', true)
+            ->pluck('id')
+            ->values()
+            ->all();
+
+        $this->actingAs($student)
+            ->post(route('student.attempts.submit', $attempt), [
+                'answers' => [
+                    $answer->question_id => $correctOptionIds,
+                ],
+            ])
+            ->assertRedirect(route('student.attempts.result', $attempt));
+
+        $attempt->refresh();
+        $answer->refresh();
+
+        $this->assertSame(1, $attempt->score);
+        $this->assertSame('passed', $attempt->status);
+        $this->assertEqualsCanonicalizing($correctOptionIds, $answer->selected_option_ids);
+    }
+
+    public function test_student_can_submit_true_false_question(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions(passMark: 100);
+        $this->assignExam($student, $exam);
+
+        $question = Question::firstOrFail();
+        $question->update(['question_type' => Question::TYPE_TRUE_FALSE]);
+        $question->options()->delete();
+        $true = $question->options()->create(['option_text' => 'True', 'is_correct' => true]);
+        $question->options()->create(['option_text' => 'False', 'is_correct' => false]);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam));
+
+        $attempt = Attempt::with('answers.question.options')->firstOrFail();
+        $answer = $attempt->answers->first();
+
+        $this->actingAs($student)
+            ->post(route('student.attempts.submit', $attempt), [
+                'answers' => [
+                    $answer->question_id => $true->id,
+                ],
+            ])
+            ->assertRedirect(route('student.attempts.result', $attempt));
+
+        $attempt->refresh();
+
+        $this->assertSame(1, $attempt->score);
+        $this->assertSame('passed', $attempt->status);
+    }
+
+    public function test_student_can_submit_matching_question(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions(passMark: 100);
+        $this->assignExam($student, $exam);
+
+        $question = Question::firstOrFail();
+        $question->update(['question_type' => Question::TYPE_MATCHING]);
+        $question->options()->delete();
+        $nigeria = $question->options()->create(['option_text' => 'Nigeria', 'match_text' => 'Abuja', 'is_correct' => true]);
+        $ghana = $question->options()->create(['option_text' => 'Ghana', 'match_text' => 'Accra', 'is_correct' => true]);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam));
+
+        $attempt = Attempt::with('answers.question.options')->firstOrFail();
+        $answer = $attempt->answers->first();
+
+        $this->actingAs($student)
+            ->post(route('student.attempts.submit', $attempt), [
+                'answers' => [
+                    $answer->question_id => [
+                        $nigeria->id => 'Abuja',
+                        $ghana->id => 'Accra',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('student.attempts.result', $attempt));
+
+        $attempt->refresh();
+        $answer->refresh();
+
+        $this->assertSame(1, $attempt->score);
+        $this->assertSame('passed', $attempt->status);
+        $this->assertSame('Abuja', $answer->matching_answer[$nigeria->id]);
+    }
+
     public function test_expired_attempt_is_finalized_when_opened(): void
     {
         $student = User::factory()->student()->create();
@@ -454,6 +565,7 @@ class ExamTakingTest extends TestCase
             $question = Question::create([
                 'category_id' => $category->id,
                 'question_text' => "Question {$number}?",
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
                 'is_active' => true,
             ]);

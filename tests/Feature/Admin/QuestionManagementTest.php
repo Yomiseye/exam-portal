@@ -72,6 +72,7 @@ class QuestionManagementTest extends TestCase
             ->post(route('admin.questions.store'), [
                 'category_id' => $category->id,
                 'question_text' => 'What is 2 + 2?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'explanation' => '2 plus 2 equals 4.',
                 'difficulty' => 'easy',
                 'is_active' => '1',
@@ -123,6 +124,7 @@ class QuestionManagementTest extends TestCase
             ->put(route('admin.questions.update', $question), [
                 'category_id' => $category->id,
                 'question_text' => 'Choose the noun.',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'explanation' => 'A noun names a person, place, or thing.',
                 'difficulty' => 'medium',
                 'correct_option' => '1',
@@ -170,6 +172,7 @@ class QuestionManagementTest extends TestCase
             ->post(route('admin.questions.store'), [
                 'category_id' => $category->id,
                 'question_text' => 'What does PHP stand for?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
                 'correct_option' => '0',
                 'options' => [
@@ -188,6 +191,7 @@ class QuestionManagementTest extends TestCase
             ->post(route('admin.questions.store'), [
                 'category_id' => $category->id,
                 'question_text' => 'Which planet is known as the red planet?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
                 'correct_option' => '9',
                 'options' => [
@@ -210,6 +214,7 @@ class QuestionManagementTest extends TestCase
             ->post(route('admin.questions.store'), [
                 'category_id' => $category->id,
                 'question_text' => 'Should fail?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
                 'correct_option' => '0',
                 'options' => [
@@ -218,5 +223,80 @@ class QuestionManagementTest extends TestCase
                 ],
             ])
             ->assertSessionHasErrors('category_id');
+    }
+
+    public function test_admin_can_create_multiple_correct_question(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create(['name' => 'Science']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'category_id' => $category->id,
+                'question_text' => 'Which are states of matter?',
+                'question_type' => Question::TYPE_MULTIPLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_options' => ['0', '2'],
+                'options' => [
+                    ['text' => 'Solid'],
+                    ['text' => 'Stone'],
+                    ['text' => 'Liquid'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'Which are states of matter?')->firstOrFail();
+
+        $this->assertSame(Question::TYPE_MULTIPLE_CHOICE, $question->question_type);
+        $this->assertSame(2, $question->options()->where('is_correct', true)->count());
+    }
+
+    public function test_admin_can_create_true_false_question(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create(['name' => 'Civics']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'category_id' => $category->id,
+                'question_text' => 'Lagos is in Nigeria.',
+                'question_type' => Question::TYPE_TRUE_FALSE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'True'],
+                    ['text' => 'False'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'Lagos is in Nigeria.')->firstOrFail();
+
+        $this->assertSame(Question::TYPE_TRUE_FALSE, $question->question_type);
+        $this->assertTrue($question->options()->where('option_text', 'True')->firstOrFail()->is_correct);
+    }
+
+    public function test_admin_can_create_matching_question(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create(['name' => 'Geography']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'category_id' => $category->id,
+                'question_text' => 'Match the countries to capitals.',
+                'question_type' => Question::TYPE_MATCHING,
+                'difficulty' => 'medium',
+                'options' => [
+                    ['text' => 'Nigeria', 'match_text' => 'Abuja'],
+                    ['text' => 'Ghana', 'match_text' => 'Accra'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'Match the countries to capitals.')->firstOrFail();
+
+        $this->assertSame(Question::TYPE_MATCHING, $question->question_type);
+        $this->assertSame('Abuja', $question->options()->where('option_text', 'Nigeria')->firstOrFail()->match_text);
     }
 }

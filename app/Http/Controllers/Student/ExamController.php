@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
-use App\Models\ExamAssignment;
 use App\Models\Exam;
+use App\Models\ExamAssignment;
 use App\Models\ExamRetakePermission;
 use App\Models\Option;
 use App\Models\Question;
@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ExamController extends Controller
@@ -164,7 +165,6 @@ class ExamController extends Controller
 
         $validated = $request->validate([
             'question_id' => ['required', 'integer'],
-            'option_id' => ['required', 'integer'],
         ]);
 
         $answer = $attempt->answers()
@@ -172,14 +172,17 @@ class ExamController extends Controller
             ->where('question_id', $validated['question_id'])
             ->firstOrFail();
 
-        abort_unless(
-            $answer->question->options->contains(fn (Option $option) => $option->id === (int) $validated['option_id']),
-            422,
-        );
+        $value = $request->has('answer')
+            ? $request->input('answer')
+            : $request->input('option_id');
 
-        $answer->update([
-            'selected_option_id' => (int) $validated['option_id'],
-        ]);
+        if (! $this->answerValueIsValid($answer, $value, false)) {
+            throw ValidationException::withMessages([
+                'answer' => 'Choose a valid answer.',
+            ]);
+        }
+
+        $this->persistAnswer($answer, $value);
 
         return response()->json(['saved' => true]);
     }
@@ -203,9 +206,9 @@ class ExamController extends Controller
 
         $validator->after(function ($validator) use ($request, $attempt, $isExpired): void {
             foreach ($attempt->answers as $answer) {
-                $selectedOptionId = $this->submittedOrSavedOptionId($request, $answer);
+                $value = $this->submittedOrSavedAnswer($request, $answer);
 
-                if (! $selectedOptionId) {
+                if (! $this->answerIsComplete($answer, $value)) {
                     if (! $isExpired) {
                         $validator->errors()->add("answers.{$answer->question_id}", 'Choose an answer.');
                     }
@@ -213,11 +216,7 @@ class ExamController extends Controller
                     continue;
                 }
 
-                $belongsToQuestion = $answer->question
-                    ->options
-                    ->contains(fn (Option $option) => $option->id === (int) $selectedOptionId);
-
-                if (! $belongsToQuestion) {
+                if (! $this->answerValueIsValid($answer, $value, true)) {
                     $validator->errors()->add("answers.{$answer->question_id}", 'Choose a valid answer.');
                 }
             }
@@ -256,7 +255,7 @@ class ExamController extends Controller
     /**
      * Persist submitted answers and close the attempt.
      *
-     * @param  array<int|string, int|string>  $submittedAnswers
+     * @param  array<int|string, mixed>  $submittedAnswers
      */
     private function finalizeAttempt(Attempt $attempt, array $submittedAnswers = []): void
     {
@@ -266,16 +265,18 @@ class ExamController extends Controller
             $score = 0;
 
             foreach ($attempt->answers as $answer) {
-                $selectedOptionId = $submittedAnswers[$answer->question_id] ?? $answer->selected_option_id;
-                $selectedOption = $answer->question
-                    ->options
-                    ->firstWhere('id', (int) $selectedOptionId);
+                $value = array_key_exists($answer->question_id, $submittedAnswers)
+                    ? $submittedAnswers[$answer->question_id]
+                    : $this->storedAnswerValue($answer);
 
-                $isCorrect = (bool) $selectedOption?->is_correct;
+                $this->persistAnswer($answer, $value);
+
+                $answer->refresh();
+
+                $isCorrect = $this->answerIsCorrect($answer);
                 $score += $isCorrect ? 1 : 0;
 
                 $answer->update([
-                    'selected_option_id' => $selectedOption?->id,
                     'is_correct' => $isCorrect,
                 ]);
             }
@@ -310,9 +311,184 @@ class ExamController extends Controller
         return $query->get();
     }
 
-    private function submittedOrSavedOptionId(Request $request, AttemptAnswer $answer): mixed
+    private function submittedOrSavedAnswer(Request $request, AttemptAnswer $answer): mixed
     {
-        return $request->input("answers.{$answer->question_id}", $answer->selected_option_id);
+        return $request->has("answers.{$answer->question_id}")
+            ? $request->input("answers.{$answer->question_id}")
+            : $this->storedAnswerValue($answer);
+    }
+
+    private function storedAnswerValue(AttemptAnswer $answer): mixed
+    {
+        return match ($answer->question->question_type) {
+            Question::TYPE_MULTIPLE_CHOICE => $answer->selected_option_ids ?? [],
+            Question::TYPE_MATCHING => $answer->matching_answer ?? [],
+            default => $answer->selected_option_id,
+        };
+    }
+
+    private function answerIsComplete(AttemptAnswer $answer, mixed $value): bool
+    {
+        return match ($answer->question->question_type) {
+            Question::TYPE_MULTIPLE_CHOICE => is_array($value) && $this->optionIds($value) !== [],
+            Question::TYPE_MATCHING => $this->matchingAnswerIsComplete($answer, $value),
+            default => is_numeric($value),
+        };
+    }
+
+    private function matchingAnswerIsComplete(AttemptAnswer $answer, mixed $value): bool
+    {
+        if (! is_array($value)) {
+            return false;
+        }
+
+        foreach ($answer->question->options as $option) {
+            if (blank($value[$option->id] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function answerValueIsValid(AttemptAnswer $answer, mixed $value, bool $requireComplete): bool
+    {
+        $optionIds = $answer->question->options->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return match ($answer->question->question_type) {
+            Question::TYPE_MULTIPLE_CHOICE => $this->selectedOptionIdsAreValid($value, $optionIds, $requireComplete),
+            Question::TYPE_MATCHING => $this->matchingAnswerIsValid($value, $optionIds, $requireComplete),
+            default => is_numeric($value) && in_array((int) $value, $optionIds, true),
+        };
+    }
+
+    /**
+     * @param  array<int, int>  $optionIds
+     */
+    private function selectedOptionIdsAreValid(mixed $value, array $optionIds, bool $requireComplete): bool
+    {
+        if (! is_array($value)) {
+            return false;
+        }
+
+        $selectedIds = $this->optionIds($value);
+
+        if ($requireComplete && $selectedIds === []) {
+            return false;
+        }
+
+        return collect($selectedIds)->every(fn (int $id) => in_array($id, $optionIds, true));
+    }
+
+    /**
+     * @param  array<int, int>  $optionIds
+     */
+    private function matchingAnswerIsValid(mixed $value, array $optionIds, bool $requireComplete): bool
+    {
+        if (! is_array($value)) {
+            return false;
+        }
+
+        foreach ($value as $optionId => $matchText) {
+            if (! in_array((int) $optionId, $optionIds, true)) {
+                return false;
+            }
+
+            if ($requireComplete && blank($matchText)) {
+                return false;
+            }
+        }
+
+        return ! $requireComplete || count($value) >= count($optionIds);
+    }
+
+    private function persistAnswer(AttemptAnswer $answer, mixed $value): void
+    {
+        match ($answer->question->question_type) {
+            Question::TYPE_MULTIPLE_CHOICE => $answer->update([
+                'selected_option_id' => null,
+                'selected_option_ids' => $this->optionIds(is_array($value) ? $value : []),
+                'matching_answer' => null,
+            ]),
+            Question::TYPE_MATCHING => $answer->update([
+                'selected_option_id' => null,
+                'selected_option_ids' => null,
+                'matching_answer' => $this->matchingAnswer($answer, is_array($value) ? $value : []),
+            ]),
+            default => $answer->update([
+                'selected_option_id' => is_numeric($value) ? (int) $value : null,
+                'selected_option_ids' => null,
+                'matching_answer' => null,
+            ]),
+        };
+    }
+
+    private function answerIsCorrect(AttemptAnswer $answer): bool
+    {
+        return match ($answer->question->question_type) {
+            Question::TYPE_MULTIPLE_CHOICE => $this->multipleChoiceAnswerIsCorrect($answer),
+            Question::TYPE_MATCHING => $this->matchingAnswerIsCorrect($answer),
+            default => (bool) $answer->question->options->firstWhere('id', $answer->selected_option_id)?->is_correct,
+        };
+    }
+
+    private function multipleChoiceAnswerIsCorrect(AttemptAnswer $answer): bool
+    {
+        $selectedIds = $this->optionIds($answer->selected_option_ids ?? []);
+        $correctIds = $answer->question->options
+            ->where('is_correct', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        sort($selectedIds);
+
+        return $selectedIds === $correctIds;
+    }
+
+    private function matchingAnswerIsCorrect(AttemptAnswer $answer): bool
+    {
+        $submitted = $answer->matching_answer ?? [];
+
+        foreach ($answer->question->options as $option) {
+            if ($this->normalizedMatchText($submitted[$option->id] ?? null) !== $this->normalizedMatchText($option->match_text)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function optionIds(array $values): array
+    {
+        return collect($values)
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    private function matchingAnswer(AttemptAnswer $answer, array $value): array
+    {
+        return $answer->question->options
+            ->mapWithKeys(fn (Option $option) => [
+                $option->id => trim((string) ($value[$option->id] ?? '')),
+            ])
+            ->all();
+    }
+
+    private function normalizedMatchText(mixed $value): string
+    {
+        return mb_strtolower(trim((string) $value));
     }
 
     private function activeAttempt(Request $request, Exam $exam): ?Attempt

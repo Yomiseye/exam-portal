@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['attempt_id', 'question_id', 'selected_option_id', 'is_correct'])]
+#[Fillable([
+    'attempt_id',
+    'question_id',
+    'selected_option_id',
+    'selected_option_ids',
+    'matching_answer',
+    'is_correct',
+])]
 class AttemptAnswer extends Model
 {
     use HasFactory;
@@ -20,6 +27,8 @@ class AttemptAnswer extends Model
     protected function casts(): array
     {
         return [
+            'selected_option_ids' => 'array',
+            'matching_answer' => 'array',
             'is_correct' => 'boolean',
         ];
     }

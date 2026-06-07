@@ -55,7 +55,7 @@ class QuestionController extends Controller
         DB::transaction(function () use ($data): void {
             $question = Question::create($data['question']);
 
-            $this->syncOptions($question, $data['options'], $data['correct_option']);
+            $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
 
         return redirect()
@@ -86,7 +86,7 @@ class QuestionController extends Controller
         DB::transaction(function () use ($question, $data): void {
             $question->update($data['question']);
 
-            $this->syncOptions($question, $data['options'], $data['correct_option']);
+            $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
 
         return redirect()
@@ -109,7 +109,7 @@ class QuestionController extends Controller
     /**
      * Validate question and option form data.
      *
-     * @return array{question: array<string, mixed>, options: array<int, array{text: string}>, correct_option: int}
+     * @return array{question: array<string, mixed>, options: array<int, array{text: string, match_text?: string}>, correct_options: array<int, int>}
      */
     private function validatedQuestionData(Request $request): array
     {
@@ -119,20 +119,69 @@ class QuestionController extends Controller
                 Rule::exists('categories', 'id')->where('is_active', true),
             ],
             'question_text' => ['required', 'string'],
+            'question_type' => ['required', Rule::in(array_keys(Question::TYPES))],
             'explanation' => ['nullable', 'string'],
             'difficulty' => ['required', Rule::in(['easy', 'medium', 'hard'])],
             'is_active' => ['sometimes', 'boolean'],
             'options' => ['required', 'array', 'min:2'],
             'options.*.text' => ['required', 'string'],
-            'correct_option' => ['required', 'integer'],
+            'options.*.match_text' => ['nullable', 'string'],
+            'correct_option' => ['nullable', 'integer'],
+            'correct_options' => ['nullable', 'array'],
+            'correct_options.*' => ['integer'],
         ]);
 
         $validator->after(function ($validator) use ($request): void {
             $options = $request->input('options', []);
-            $correctOption = $request->input('correct_option');
+            $questionType = $request->input('question_type', Question::TYPE_SINGLE_CHOICE);
 
-            if (! is_numeric($correctOption) || ! array_key_exists((int) $correctOption, $options)) {
-                $validator->errors()->add('correct_option', 'Choose one correct option.');
+            if ($questionType === Question::TYPE_MATCHING) {
+                $matchTexts = [];
+
+                foreach ($options as $index => $option) {
+                    if (blank($option['match_text'] ?? null)) {
+                        $validator->errors()->add("options.{$index}.match_text", 'Enter the matching answer.');
+                    }
+
+                    $matchTexts[] = strtolower(trim((string) ($option['match_text'] ?? '')));
+                }
+
+                if (count($matchTexts) !== count(array_unique($matchTexts))) {
+                    $validator->errors()->add('options', 'Matching answers must be unique.');
+                }
+
+                return;
+            }
+
+            $correctOptions = $this->correctOptionIndexes($request);
+
+            if ($correctOptions === []) {
+                $validator->errors()->add('correct_option', $questionType === Question::TYPE_MULTIPLE_CHOICE
+                    ? 'Choose at least one correct option.'
+                    : 'Choose one correct option.');
+            }
+
+            foreach ($correctOptions as $correctOption) {
+                if (! array_key_exists($correctOption, $options)) {
+                    $validator->errors()->add('correct_option', 'Choose a valid correct option.');
+                }
+            }
+
+            if (in_array($questionType, [Question::TYPE_SINGLE_CHOICE, Question::TYPE_TRUE_FALSE], true) && count($correctOptions) !== 1) {
+                $validator->errors()->add('correct_option', 'Choose exactly one correct option.');
+            }
+
+            if ($questionType === Question::TYPE_TRUE_FALSE) {
+                $optionTexts = collect($options)
+                    ->pluck('text')
+                    ->map(fn ($text) => strtolower(trim((string) $text)))
+                    ->sort()
+                    ->values()
+                    ->all();
+
+                if ($optionTexts !== ['false', 'true']) {
+                    $validator->errors()->add('options', 'True / False questions must have True and False options.');
+                }
             }
         });
 
@@ -142,30 +191,59 @@ class QuestionController extends Controller
             'question' => [
                 'category_id' => $validated['category_id'],
                 'question_text' => $validated['question_text'],
+                'question_type' => $validated['question_type'],
                 'explanation' => $validated['explanation'] ?? null,
                 'difficulty' => $validated['difficulty'],
                 'is_active' => $request->boolean('is_active'),
             ],
             'options' => array_values($validated['options']),
-            'correct_option' => (int) $validated['correct_option'],
+            'correct_options' => $this->correctOptionIndexes($request),
         ];
     }
 
     /**
      * Replace a question's answer options.
      *
-     * @param  array<int, array{text: string}>  $options
+     * @param  array<int, array{text: string, match_text?: string}>  $options
+     * @param  array<int, int>  $correctOptions
      */
-    private function syncOptions(Question $question, array $options, int $correctOption): void
+    private function syncOptions(Question $question, array $options, array $correctOptions): void
     {
         $question->options()->delete();
 
         foreach ($options as $index => $option) {
             $question->options()->create([
                 'option_text' => $option['text'],
-                'is_correct' => $index === $correctOption,
+                'match_text' => $question->question_type === Question::TYPE_MATCHING ? ($option['match_text'] ?? null) : null,
+                'is_correct' => $question->question_type === Question::TYPE_MATCHING || in_array($index, $correctOptions, true),
             ]);
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function correctOptionIndexes(Request $request): array
+    {
+        $questionType = $request->input('question_type', Question::TYPE_SINGLE_CHOICE);
+
+        if ($questionType === Question::TYPE_MATCHING) {
+            return [];
+        }
+
+        if ($questionType === Question::TYPE_MULTIPLE_CHOICE) {
+            return collect($request->input('correct_options', []))
+                ->map(fn ($value) => (int) $value)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if (! is_numeric($request->input('correct_option'))) {
+            return [];
+        }
+
+        return [(int) $request->input('correct_option')];
     }
 
     /**
