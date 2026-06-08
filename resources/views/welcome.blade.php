@@ -283,10 +283,6 @@
                             <a href="{{ url('/dashboard') }}" class="btn btn-primary">Dashboard</a>
                         @else
                             <a href="{{ route('login') }}" class="btn btn-plain">Log in</a>
-
-                            @if (Route::has('register'))
-                                <a href="{{ route('register') }}" class="btn btn-primary">Register</a>
-                            @endif
                         @endauth
                     </nav>
                 @endif
@@ -304,9 +300,6 @@
                             <a href="{{ url('/dashboard') }}" class="btn btn-primary">Open Dashboard</a>
                         @else
                             <a href="{{ route('login') }}" class="btn btn-primary">Start</a>
-                            @if (Route::has('register'))
-                                <a href="{{ route('register') }}" class="btn btn-plain">Create Account</a>
-                            @endif
                         @endauth
                     </div>
                 </section>

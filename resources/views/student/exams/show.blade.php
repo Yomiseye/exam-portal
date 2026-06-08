@@ -70,7 +70,7 @@
                         <div class="text-sm font-medium text-gray-700">Categories</div>
                         <div class="mt-2 flex flex-wrap gap-2">
                             @foreach ($exam->categories as $category)
-                                <span class="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{{ $category->name }}</span>
+                                <span class="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{{ $category->fullName() }}</span>
                             @endforeach
                         </div>
                     </div>

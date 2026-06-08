@@ -17,7 +17,7 @@
                     @csrf
                     @method('PUT')
 
-                    @include('admin.categories.partials.form', ['category' => $category])
+                    @include('admin.categories.partials.form', ['category' => $category, 'parentCategories' => $parentCategories])
 
                     <div class="flex justify-end">
                         <x-primary-button>Save Changes</x-primary-button>

@@ -19,7 +19,7 @@ class ExamController extends Controller
     public function index(): View
     {
         $exams = Exam::query()
-            ->with('categories')
+            ->with('categories.parent')
             ->latest()
             ->paginate(10);
 
@@ -141,6 +141,7 @@ class ExamController extends Controller
     private function activeCategories(?Exam $exam = null)
     {
         return Category::query()
+            ->with('parent')
             ->where(function ($query) use ($exam): void {
                 $query->where('is_active', true);
 
@@ -148,6 +149,7 @@ class ExamController extends Controller
                     $query->orWhereIn('id', $exam->categories->pluck('id'));
                 }
             })
+            ->orderByRaw('parent_id is not null')
             ->orderBy('name')
             ->get();
     }

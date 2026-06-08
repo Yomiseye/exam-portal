@@ -27,7 +27,7 @@ class ExamController extends Controller
     {
         abort_unless($exam->is_active, 404);
 
-        $exam->load('categories');
+        $exam->load('categories.parent');
 
         $assignment = $this->assignment(request(), $exam);
         abort_unless($assignment, 404);
@@ -294,7 +294,15 @@ class ExamController extends Controller
 
     private function availableQuestions(Exam $exam)
     {
-        $categoryIds = $exam->categories()->pluck('categories.id');
+        $categoryIds = $exam->categories()
+            ->with('subcategories')
+            ->get()
+            ->flatMap(fn ($category) => array_merge(
+                [$category->id],
+                $category->subcategories->pluck('id')->all(),
+            ))
+            ->unique()
+            ->values();
 
         $query = Question::query()
             ->where('is_active', true)

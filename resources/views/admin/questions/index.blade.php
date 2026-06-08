@@ -1,12 +1,17 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Questions
             </h2>
-            <a href="{{ route('admin.questions.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
-                Create Question
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.questions.import') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50">
+                    Import Excel
+                </a>
+                <a href="{{ route('admin.questions.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+                    Create Question
+                </a>
+            </div>
         </div>
     </x-slot>
 
@@ -26,7 +31,7 @@
                             <option value="">All categories</option>
                             @foreach ($categories as $category)
                                 <option value="{{ $category->id }}" @selected((string) request('category_id') === (string) $category->id)>
-                                    {{ $category->name }}
+                                    {{ $category->fullName() }}
                                 </option>
                             @endforeach
                         </select>
@@ -70,7 +75,7 @@
                                         {{ \Illuminate\Support\Str::limit($question->question_text, 100) }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $question->category->name }}
+                                        {{ $question->category->fullName() }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $question->typeLabel() }}

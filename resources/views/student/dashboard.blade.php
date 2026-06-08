@@ -30,7 +30,7 @@
                                             </div>
 
                                             <div class="mt-3 text-sm text-gray-500">
-                                                {{ $exam->categories->pluck('name')->join(', ') }}
+                                                {{ $exam->categories->map(fn ($category) => $category->fullName())->join(', ') }}
                                             </div>
 
                                             <div class="mt-3">

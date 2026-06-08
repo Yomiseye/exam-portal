@@ -6,7 +6,9 @@ use App\Models\Category;
 use App\Models\Question;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
+use ZipArchive;
 
 class QuestionManagementTest extends TestCase
 {
@@ -34,7 +36,7 @@ class QuestionManagementTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        Category::create(['name' => 'Mathematics']);
+        $this->categoryPair('Mathematics', 'Algebra');
 
         $this->actingAs($admin)
             ->get(route('admin.questions.create'))
@@ -42,12 +44,25 @@ class QuestionManagementTest extends TestCase
             ->assertSee('Create Question');
     }
 
+    public function test_admin_can_view_question_import_form(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->categoryPair('Mathematics', 'Algebra');
+
+        $this->actingAs($admin)
+            ->get(route('admin.questions.import'))
+            ->assertOk()
+            ->assertSee('Import Questions')
+            ->assertSee('Excel Format');
+    }
+
     public function test_admin_can_view_question_edit_form(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'English']);
+        [$category, $subcategory] = $this->categoryPair('English', 'Grammar');
         $question = Question::create([
-            'category_id' => $category->id,
+            'category_id' => $subcategory->id,
             'question_text' => 'Choose the noun.',
             'difficulty' => 'easy',
             'is_active' => true,
@@ -66,11 +81,12 @@ class QuestionManagementTest extends TestCase
     public function test_admin_can_create_question_with_options(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'Mathematics']);
+        [$category, $subcategory] = $this->categoryPair('Mathematics', 'Algebra');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'What is 2 + 2?',
                 'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'explanation' => '2 plus 2 equals 4.',
@@ -87,7 +103,7 @@ class QuestionManagementTest extends TestCase
             ->assertRedirect(route('admin.questions.index'));
 
         $this->assertDatabaseHas('questions', [
-            'category_id' => $category->id,
+            'category_id' => $subcategory->id,
             'question_text' => 'What is 2 + 2?',
             'difficulty' => 'easy',
             'is_active' => true,
@@ -105,12 +121,104 @@ class QuestionManagementTest extends TestCase
         $this->assertSame(1, $question->options()->where('is_correct', true)->count());
     }
 
+    public function test_admin_can_create_question_under_subcategory(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $parent = Category::create(['name' => 'Project Management', 'is_active' => true]);
+        $subcategory = Category::create([
+            'parent_id' => $parent->id,
+            'name' => 'Scope Performance Domain',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $parent->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'What is scope baseline?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'medium',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'Approved scope statement, WBS, and WBS dictionary'],
+                    ['text' => 'Only the project budget'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $this->assertDatabaseHas('questions', [
+            'category_id' => $subcategory->id,
+            'question_text' => 'What is scope baseline?',
+        ]);
+    }
+
+    public function test_admin_can_create_question_with_new_category_and_new_subcategory(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'new_category_name' => 'Project Management',
+                'new_subcategory_name' => 'Stakeholder Performance Domain',
+                'question_text' => 'Who should be engaged throughout the project?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'medium',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'Stakeholders'],
+                    ['text' => 'Only the project sponsor'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $category = Category::where('name', 'Project Management')->firstOrFail();
+        $subcategory = Category::where('name', 'Stakeholder Performance Domain')->firstOrFail();
+
+        $this->assertSame($category->id, $subcategory->parent_id);
+        $this->assertDatabaseHas('questions', [
+            'category_id' => $subcategory->id,
+            'question_text' => 'Who should be engaged throughout the project?',
+        ]);
+    }
+
+    public function test_admin_can_create_question_with_existing_category_and_new_subcategory(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'name' => 'Project Management',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'new_subcategory_name' => 'Risk Performance Domain',
+                'question_text' => 'What does risk management focus on?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'medium',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'Uncertainty and response planning'],
+                    ['text' => 'Only procurement paperwork'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $subcategory = Category::where('name', 'Risk Performance Domain')->firstOrFail();
+
+        $this->assertSame($category->id, $subcategory->parent_id);
+        $this->assertDatabaseHas('questions', [
+            'category_id' => $subcategory->id,
+            'question_text' => 'What does risk management focus on?',
+        ]);
+    }
+
     public function test_admin_can_update_question_and_options(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'English']);
+        [$category, $subcategory] = $this->categoryPair('English', 'Parts of Speech');
         $question = Question::create([
-            'category_id' => $category->id,
+            'category_id' => $subcategory->id,
             'question_text' => 'Old question?',
             'difficulty' => 'easy',
             'is_active' => true,
@@ -122,7 +230,8 @@ class QuestionManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->put(route('admin.questions.update', $question), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Choose the noun.',
                 'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'explanation' => 'A noun names a person, place, or thing.',
@@ -166,11 +275,12 @@ class QuestionManagementTest extends TestCase
     public function test_question_requires_at_least_two_options(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'Programming']);
+        [$category, $subcategory] = $this->categoryPair('Programming', 'PHP');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'What does PHP stand for?',
                 'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
@@ -185,11 +295,12 @@ class QuestionManagementTest extends TestCase
     public function test_question_requires_correct_option_to_match_an_option(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'General Knowledge']);
+        [$category, $subcategory] = $this->categoryPair('General Knowledge', 'Planets');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Which planet is known as the red planet?',
                 'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
@@ -209,10 +320,16 @@ class QuestionManagementTest extends TestCase
             'name' => 'Inactive Category',
             'is_active' => false,
         ]);
+        $subcategory = Category::create([
+            'parent_id' => $category->id,
+            'name' => 'Inactive Subcategory',
+            'is_active' => false,
+        ]);
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Should fail?',
                 'question_type' => Question::TYPE_SINGLE_CHOICE,
                 'difficulty' => 'easy',
@@ -222,17 +339,18 @@ class QuestionManagementTest extends TestCase
                     ['text' => 'No'],
                 ],
             ])
-            ->assertSessionHasErrors('category_id');
+            ->assertSessionHasErrors('parent_category_id');
     }
 
     public function test_admin_can_create_multiple_correct_question(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'Science']);
+        [$category, $subcategory] = $this->categoryPair('Science', 'Matter');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Which are states of matter?',
                 'question_type' => Question::TYPE_MULTIPLE_CHOICE,
                 'difficulty' => 'easy',
@@ -254,11 +372,12 @@ class QuestionManagementTest extends TestCase
     public function test_admin_can_create_true_false_question(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'Civics']);
+        [$category, $subcategory] = $this->categoryPair('Civics', 'Nigeria');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Lagos is in Nigeria.',
                 'question_type' => Question::TYPE_TRUE_FALSE,
                 'difficulty' => 'easy',
@@ -279,11 +398,12 @@ class QuestionManagementTest extends TestCase
     public function test_admin_can_create_matching_question(): void
     {
         $admin = User::factory()->admin()->create();
-        $category = Category::create(['name' => 'Geography']);
+        [$category, $subcategory] = $this->categoryPair('Geography', 'Capitals');
 
         $this->actingAs($admin)
             ->post(route('admin.questions.store'), [
-                'category_id' => $category->id,
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
                 'question_text' => 'Match the countries to capitals.',
                 'question_type' => Question::TYPE_MATCHING,
                 'difficulty' => 'medium',
@@ -298,5 +418,139 @@ class QuestionManagementTest extends TestCase
 
         $this->assertSame(Question::TYPE_MATCHING, $question->question_type);
         $this->assertSame('Abuja', $question->options()->where('option_text', 'Nigeria')->firstOrFail()->match_text);
+    }
+
+    public function test_admin_can_import_questions_from_excel(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $file = $this->excelUpload([
+            ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'option_3', 'correct_answers', 'match_1', 'match_2', 'match_3'],
+            ['Mathematics', 'Number Theory', 'multiple_choice', 'Select even numbers.', 'easy', '2', '3', '4', '1;3', '', '', ''],
+            ['Geography', 'Capitals', 'matching', 'Match countries to capitals.', 'medium', 'Nigeria', 'Ghana', '', '', 'Abuja', 'Accra', ''],
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.import.store'), [
+                'questions_file' => $file,
+            ])
+            ->assertRedirect(route('admin.questions.index'))
+            ->assertSessionHas('status', '2 question(s) imported successfully.');
+
+        $this->assertDatabaseHas('questions', [
+            'question_text' => 'Select even numbers.',
+            'question_type' => Question::TYPE_MULTIPLE_CHOICE,
+        ]);
+        $this->assertDatabaseHas('questions', [
+            'question_text' => 'Match countries to capitals.',
+            'question_type' => Question::TYPE_MATCHING,
+        ]);
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Mathematics',
+            'parent_id' => null,
+        ]);
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Number Theory',
+        ]);
+
+        $multipleChoice = Question::where('question_text', 'Select even numbers.')->firstOrFail();
+        $matching = Question::where('question_text', 'Match countries to capitals.')->firstOrFail();
+
+        $this->assertSame(2, $multipleChoice->options()->where('is_correct', true)->count());
+        $this->assertSame('Abuja', $matching->options()->where('option_text', 'Nigeria')->firstOrFail()->match_text);
+    }
+
+    public function test_question_import_rejects_invalid_rows_without_creating_questions(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $file = $this->excelUpload([
+            ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'correct_answers'],
+            ['', 'General', 'single_choice', 'Should fail?', 'easy', 'Yes', 'No', '1'],
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.questions.import'))
+            ->post(route('admin.questions.import.store'), [
+                'questions_file' => $file,
+            ])
+            ->assertRedirect(route('admin.questions.import'))
+            ->assertSessionHasErrors('questions_file');
+
+        $this->assertDatabaseMissing('questions', [
+            'question_text' => 'Should fail?',
+        ]);
+    }
+
+    /**
+     * @return array{0: Category, 1: Category}
+     */
+    private function categoryPair(string $categoryName, string $subcategoryName): array
+    {
+        $category = Category::create([
+            'name' => $categoryName,
+            'is_active' => true,
+        ]);
+
+        $subcategory = Category::create([
+            'parent_id' => $category->id,
+            'name' => $subcategoryName,
+            'is_active' => true,
+        ]);
+
+        return [$category, $subcategory];
+    }
+
+    /**
+     * @param  array<int, array<int, string>>  $rows
+     */
+    private function excelUpload(array $rows): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'questions-import-');
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+        $zip->addFromString('xl/worksheets/sheet1.xml', $this->worksheetXml($rows));
+        $zip->close();
+
+        return new UploadedFile(
+            $path,
+            'questions.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+    }
+
+    /**
+     * @param  array<int, array<int, string>>  $rows
+     */
+    private function worksheetXml(array $rows): string
+    {
+        $xmlRows = '';
+
+        foreach ($rows as $rowIndex => $row) {
+            $cellXml = '';
+
+            foreach ($row as $columnIndex => $value) {
+                $reference = $this->excelColumn($columnIndex + 1).($rowIndex + 1);
+                $cellXml .= '<c r="'.$reference.'" t="inlineStr"><is><t>'.htmlspecialchars($value, ENT_XML1).'</t></is></c>';
+            }
+
+            $xmlRows .= '<row r="'.($rowIndex + 1).'">'.$cellXml.'</row>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'.$xmlRows.'</sheetData></worksheet>';
+    }
+
+    private function excelColumn(int $index): string
+    {
+        $column = '';
+
+        while ($index > 0) {
+            $index--;
+            $column = chr(65 + ($index % 26)).$column;
+            $index = intdiv($index, 26);
+        }
+
+        return $column;
     }
 }

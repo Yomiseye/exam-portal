@@ -13,6 +13,19 @@
 </div>
 
 <div>
+    <x-input-label for="parent_id" value="Parent Category" />
+    <select id="parent_id" name="parent_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+        <option value="">No parent category</option>
+        @foreach ($parentCategories as $parentCategory)
+            <option value="{{ $parentCategory->id }}" @selected((string) old('parent_id', $category?->parent_id) === (string) $parentCategory->id)>
+                {{ $parentCategory->fullName() }}
+            </option>
+        @endforeach
+    </select>
+    <x-input-error class="mt-2" :messages="$errors->get('parent_id')" />
+</div>
+
+<div>
     <x-input-label for="description" value="Description" />
     <textarea
         id="description"

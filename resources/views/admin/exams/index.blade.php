@@ -43,7 +43,7 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
-                                        {{ $exam->categories->pluck('name')->join(', ') }}
+                                        {{ $exam->categories->map(fn ($category) => $category->fullName())->join(', ') }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $exam->duration_minutes }} min

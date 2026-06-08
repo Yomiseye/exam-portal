@@ -87,7 +87,7 @@
                     class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                 >
                 <span class="ms-3">
-                    <span class="block text-sm font-medium text-gray-900">{{ $category->name }}</span>
+                    <span class="block text-sm font-medium text-gray-900">{{ $category->fullName() }}</span>
                     @if ($category->description)
                         <span class="block text-sm text-gray-500">{{ $category->description }}</span>
                     @endif

@@ -24,6 +24,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -33,7 +34,10 @@
                             @forelse ($categories as $category)
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {{ $category->name }}
+                                        {{ $category->parent ? '— '.$category->name : $category->name }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $category->parent?->name ?? 'Top level' }}
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
                                         {{ $category->description ?: 'No description' }}
@@ -59,7 +63,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-6 py-10 text-center text-sm text-gray-500">
+                                    <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">
                                         No categories have been created yet.
                                     </td>
                                 </tr>

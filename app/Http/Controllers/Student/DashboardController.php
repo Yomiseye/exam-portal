@@ -15,7 +15,7 @@ class DashboardController extends Controller
     {
         $exams = Exam::query()
             ->with([
-                'categories',
+                'categories.parent',
                 'assignments' => fn ($query) => $query->where('user_id', request()->user()->id),
             ])
             ->where('is_active', true)

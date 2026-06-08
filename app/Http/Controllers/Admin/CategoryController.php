@@ -17,7 +17,9 @@ class CategoryController extends Controller
     public function index(): View
     {
         $categories = Category::query()
-            ->latest()
+            ->with('parent')
+            ->orderByRaw('parent_id is not null')
+            ->orderBy('name')
             ->paginate(10);
 
         return view('admin.categories.index', compact('categories'));
@@ -28,7 +30,9 @@ class CategoryController extends Controller
      */
     public function create(): View
     {
-        return view('admin.categories.create');
+        return view('admin.categories.create', [
+            'parentCategories' => $this->parentCategories(),
+        ]);
     }
 
     /**
@@ -48,7 +52,10 @@ class CategoryController extends Controller
      */
     public function edit(Category $category): View
     {
-        return view('admin.categories.edit', compact('category'));
+        return view('admin.categories.edit', [
+            'category' => $category,
+            'parentCategories' => $this->parentCategories($category),
+        ]);
     }
 
     /**
@@ -83,6 +90,20 @@ class CategoryController extends Controller
     private function validatedCategoryData(Request $request, ?Category $category = null): array
     {
         return $request->validate([
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('categories', 'id')->where('is_active', true),
+                function (string $attribute, mixed $value, \Closure $fail) use ($category): void {
+                    if (! $category || ! $value) {
+                        return;
+                    }
+
+                    if ((int) $value === $category->id || in_array((int) $value, $this->descendantIds($category), true)) {
+                        $fail('Choose a valid parent category.');
+                    }
+                },
+            ],
             'name' => [
                 'required',
                 'string',
@@ -92,5 +113,32 @@ class CategoryController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]) + ['is_active' => false];
+    }
+
+    private function parentCategories(?Category $category = null)
+    {
+        $excludedIds = $category
+            ? array_merge([$category->id], $this->descendantIds($category))
+            : [];
+
+        return Category::query()
+            ->with('parent')
+            ->where('is_active', true)
+            ->when($excludedIds !== [], fn ($query) => $query->whereNotIn('id', $excludedIds))
+            ->orderByRaw('parent_id is not null')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function descendantIds(Category $category): array
+    {
+        $category->loadMissing('subcategories.subcategories');
+
+        return $category->subcategories
+            ->flatMap(fn (Category $subcategory) => array_merge([$subcategory->id], $this->descendantIds($subcategory)))
+            ->all();
     }
 }

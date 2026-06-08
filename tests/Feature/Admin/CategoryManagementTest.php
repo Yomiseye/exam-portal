@@ -48,6 +48,31 @@ class CategoryManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_create_subcategory(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $parent = Category::create([
+            'name' => 'Project Management',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.categories.store'), [
+                'parent_id' => $parent->id,
+                'name' => 'Scope Performance Domain',
+                'description' => 'Scope questions.',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'parent_id' => $parent->id,
+            'name' => 'Scope Performance Domain',
+            'description' => 'Scope questions.',
+            'is_active' => true,
+        ]);
+    }
+
     public function test_admin_can_update_category(): void
     {
         $admin = User::factory()->admin()->create();
@@ -98,5 +123,21 @@ class CategoryManagementTest extends TestCase
                 'name' => 'Biology',
             ])
             ->assertSessionHasErrors('name');
+    }
+
+    public function test_category_cannot_use_itself_as_parent(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'name' => 'Project Management',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.categories.update', $category), [
+                'parent_id' => $category->id,
+                'name' => 'Project Management',
+            ])
+            ->assertSessionHasErrors('parent_id');
     }
 }

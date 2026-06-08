@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Question;
+use App\Services\QuestionImportSpreadsheet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class QuestionController extends Controller
     public function index(Request $request): View
     {
         $questions = Question::query()
-            ->with('category')
+            ->with('category.parent')
             ->withCount('options')
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('difficulty'), fn ($query) => $query->where('difficulty', $request->string('difficulty')))
@@ -29,6 +30,8 @@ class QuestionController extends Controller
             ->withQueryString();
 
         $categories = Category::query()
+            ->with('parent')
+            ->whereNotNull('parent_id')
             ->orderBy('name')
             ->get();
 
@@ -41,7 +44,17 @@ class QuestionController extends Controller
     public function create(): View
     {
         return view('admin.questions.create', [
-            'categories' => $this->activeCategories(),
+            'categories' => $this->parentCategories(),
+        ]);
+    }
+
+    /**
+     * Show the question spreadsheet import form.
+     */
+    public function import(): View
+    {
+        return view('admin.questions.import', [
+            'categories' => $this->parentCategories(),
         ]);
     }
 
@@ -53,7 +66,11 @@ class QuestionController extends Controller
         $data = $this->validatedQuestionData($request);
 
         DB::transaction(function () use ($data): void {
-            $question = Question::create($data['question']);
+            $subcategory = $this->resolveSubcategory($data['category']);
+            $questionData = $data['question'];
+            $questionData['category_id'] = $subcategory->id;
+
+            $question = Question::create($questionData);
 
             $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
@@ -61,6 +78,62 @@ class QuestionController extends Controller
         return redirect()
             ->route('admin.questions.index')
             ->with('status', 'Question created successfully.');
+    }
+
+    /**
+     * Import questions from an uploaded Excel workbook.
+     */
+    public function storeImport(Request $request, QuestionImportSpreadsheet $spreadsheet): RedirectResponse
+    {
+        $validated = $request->validate([
+            'questions_file' => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+        ]);
+
+        $rows = $spreadsheet->rows($validated['questions_file']->getRealPath());
+
+        if ($rows === []) {
+            return back()
+                ->withInput()
+                ->withErrors(['questions_file' => 'The spreadsheet does not contain any question rows.']);
+        }
+
+        $importRows = [];
+        $errors = [];
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+            $data = $this->questionDataFromImportRow($row, $rowNumber);
+
+            if ($data['errors'] !== []) {
+                $errors = array_merge($errors, $data['errors']);
+
+                continue;
+            }
+
+            $importRows[] = $data['question'];
+        }
+
+        if ($errors !== []) {
+            return back()
+                ->withInput()
+                ->withErrors(['questions_file' => implode("\n", $errors)]);
+        }
+
+        DB::transaction(function () use ($importRows): void {
+            foreach ($importRows as $data) {
+                $subcategory = $this->resolveImportSubcategory($data['category']);
+                $questionData = $data['question'];
+                $questionData['category_id'] = $subcategory->id;
+
+                $question = Question::create($questionData);
+
+                $this->syncOptions($question, $data['options'], $data['correct_options']);
+            }
+        });
+
+        return redirect()
+            ->route('admin.questions.index')
+            ->with('status', count($importRows).' question(s) imported successfully.');
     }
 
     /**
@@ -72,7 +145,7 @@ class QuestionController extends Controller
 
         return view('admin.questions.edit', [
             'question' => $question,
-            'categories' => $this->activeCategories(),
+            'categories' => $this->parentCategories(),
         ]);
     }
 
@@ -84,7 +157,11 @@ class QuestionController extends Controller
         $data = $this->validatedQuestionData($request);
 
         DB::transaction(function () use ($question, $data): void {
-            $question->update($data['question']);
+            $subcategory = $this->resolveSubcategory($data['category']);
+            $questionData = $data['question'];
+            $questionData['category_id'] = $subcategory->id;
+
+            $question->update($questionData);
 
             $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
@@ -114,10 +191,22 @@ class QuestionController extends Controller
     private function validatedQuestionData(Request $request): array
     {
         $validator = Validator::make($request->all(), [
-            'category_id' => [
-                'required',
-                Rule::exists('categories', 'id')->where('is_active', true),
+            'parent_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('categories', 'id')->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('parent_id')),
             ],
+            'new_category_name' => ['nullable', 'string', 'max:255', 'unique:categories,name'],
+            'subcategory_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('categories', 'id')->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNotNull('parent_id')),
+            ],
+            'new_subcategory_name' => ['nullable', 'string', 'max:255', 'unique:categories,name'],
             'question_text' => ['required', 'string'],
             'question_type' => ['required', Rule::in(array_keys(Question::TYPES))],
             'explanation' => ['nullable', 'string'],
@@ -134,6 +223,38 @@ class QuestionController extends Controller
         $validator->after(function ($validator) use ($request): void {
             $options = $request->input('options', []);
             $questionType = $request->input('question_type', Question::TYPE_SINGLE_CHOICE);
+            $hasExistingCategory = filled($request->input('parent_category_id'));
+            $hasNewCategory = filled($request->input('new_category_name'));
+            $hasExistingSubcategory = filled($request->input('subcategory_id'));
+            $hasNewSubcategory = filled($request->input('new_subcategory_name'));
+
+            if ($hasExistingCategory && $hasNewCategory) {
+                $validator->errors()->add('new_category_name', 'Choose an existing category or add a new one, not both.');
+            }
+
+            if (! $hasExistingCategory && ! $hasNewCategory) {
+                $validator->errors()->add('parent_category_id', 'Choose an existing category or add a new one.');
+            }
+
+            if ($hasExistingSubcategory && $hasNewSubcategory) {
+                $validator->errors()->add('new_subcategory_name', 'Choose an existing subcategory or add a new one, not both.');
+            }
+
+            if (! $hasExistingSubcategory && ! $hasNewSubcategory) {
+                $validator->errors()->add('subcategory_id', 'Every question must have a subcategory.');
+            }
+
+            if ($hasNewCategory && $hasExistingSubcategory) {
+                $validator->errors()->add('subcategory_id', 'Add a new subcategory under the new category.');
+            }
+
+            if ($hasExistingCategory && $hasExistingSubcategory) {
+                $subcategory = Category::query()->find($request->integer('subcategory_id'));
+
+                if (! $subcategory || $subcategory->parent_id !== $request->integer('parent_category_id')) {
+                    $validator->errors()->add('subcategory_id', 'Choose a subcategory under the selected category.');
+                }
+            }
 
             if ($questionType === Question::TYPE_MATCHING) {
                 $matchTexts = [];
@@ -188,8 +309,13 @@ class QuestionController extends Controller
         $validated = $validator->validate();
 
         return [
+            'category' => [
+                'parent_category_id' => $validated['parent_category_id'] ?? null,
+                'new_category_name' => $validated['new_category_name'] ?? null,
+                'subcategory_id' => $validated['subcategory_id'] ?? null,
+                'new_subcategory_name' => $validated['new_subcategory_name'] ?? null,
+            ],
             'question' => [
-                'category_id' => $validated['category_id'],
                 'question_text' => $validated['question_text'],
                 'question_type' => $validated['question_type'],
                 'explanation' => $validated['explanation'] ?? null,
@@ -221,6 +347,31 @@ class QuestionController extends Controller
     }
 
     /**
+     * @param  array{parent_category_id?: int|null, new_category_name?: string|null, subcategory_id?: int|null, new_subcategory_name?: string|null}  $data
+     */
+    private function resolveSubcategory(array $data): Category
+    {
+        if (filled($data['new_category_name'] ?? null)) {
+            $parent = Category::create([
+                'name' => trim($data['new_category_name']),
+                'is_active' => true,
+            ]);
+        } else {
+            $parent = Category::query()->findOrFail($data['parent_category_id']);
+        }
+
+        if (filled($data['new_subcategory_name'] ?? null)) {
+            return Category::create([
+                'parent_id' => $parent->id,
+                'name' => trim($data['new_subcategory_name']),
+                'is_active' => true,
+            ]);
+        }
+
+        return Category::query()->where('parent_id', $parent->id)->findOrFail($data['subcategory_id']);
+    }
+
+    /**
      * @return array<int, int>
      */
     private function correctOptionIndexes(Request $request): array
@@ -247,12 +398,235 @@ class QuestionController extends Controller
     }
 
     /**
+     * @param  array<string, string>  $row
+     * @return array{errors: array<int, string>, question?: array{category: array{category_name: string, subcategory_name: string}, question: array<string, mixed>, options: array<int, array{text: string, match_text?: string|null}>, correct_options: array<int, int>}}
+     */
+    private function questionDataFromImportRow(array $row, int $rowNumber): array
+    {
+        $errors = [];
+        $categoryName = trim($row['category'] ?? '');
+        $subcategoryName = trim($row['subcategory'] ?? '');
+        $questionType = $this->questionTypeFromImport($row['question_type'] ?? 'single_choice');
+        $difficulty = strtolower($row['difficulty'] ?? 'easy');
+        $options = $this->optionsFromImportRow($row);
+
+        if ($categoryName === '') {
+            $errors[] = "Row {$rowNumber}: category is required.";
+        }
+
+        if ($subcategoryName === '') {
+            $errors[] = "Row {$rowNumber}: subcategory is required.";
+        }
+
+        if (blank($row['question'] ?? $row['question_text'] ?? null)) {
+            $errors[] = "Row {$rowNumber}: question is required.";
+        }
+
+        if (! $questionType) {
+            $errors[] = "Row {$rowNumber}: question_type must be single_choice, multiple_choice, true_false, or matching.";
+        }
+
+        if (! in_array($difficulty, ['easy', 'medium', 'hard'], true)) {
+            $errors[] = "Row {$rowNumber}: difficulty must be easy, medium, or hard.";
+        }
+
+        if (count($options) < 2) {
+            $errors[] = "Row {$rowNumber}: at least option_1 and option_2 are required.";
+        }
+
+        $correctOptions = [];
+
+        if ($questionType === Question::TYPE_MATCHING) {
+            $matchTexts = collect($options)
+                ->pluck('match_text')
+                ->map(fn ($text) => strtolower(trim((string) $text)))
+                ->all();
+
+            if (in_array('', $matchTexts, true)) {
+                $errors[] = "Row {$rowNumber}: matching questions require match_1, match_2, and so on for each option.";
+            }
+
+            if (count($matchTexts) !== count(array_unique($matchTexts))) {
+                $errors[] = "Row {$rowNumber}: matching answers must be unique.";
+            }
+        } else {
+            $correctOptions = $this->correctOptionsFromImportRow($row['correct_answers'] ?? '', $options);
+
+            if ($correctOptions === []) {
+                $errors[] = "Row {$rowNumber}: correct_answers must identify the correct option(s).";
+            }
+
+            if (in_array($questionType, [Question::TYPE_SINGLE_CHOICE, Question::TYPE_TRUE_FALSE], true) && count($correctOptions) !== 1) {
+                $errors[] = "Row {$rowNumber}: this question type needs exactly one correct answer.";
+            }
+
+            if ($questionType === Question::TYPE_TRUE_FALSE) {
+                $optionTexts = collect($options)
+                    ->pluck('text')
+                    ->map(fn ($text) => strtolower(trim((string) $text)))
+                    ->sort()
+                    ->values()
+                    ->all();
+
+                if ($optionTexts !== ['false', 'true']) {
+                    $errors[] = "Row {$rowNumber}: true_false questions must have True and False options.";
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            return ['errors' => $errors];
+        }
+
+        return [
+            'errors' => [],
+            'question' => [
+                'question' => [
+                    'question_text' => $row['question'] ?? $row['question_text'],
+                    'question_type' => $questionType,
+                    'explanation' => blank($row['explanation'] ?? null) ? null : $row['explanation'],
+                    'difficulty' => $difficulty,
+                    'is_active' => $this->booleanFromImport($row['is_active'] ?? 'yes'),
+                ],
+                'category' => [
+                    'category_name' => $categoryName,
+                    'subcategory_name' => $subcategoryName,
+                ],
+                'options' => $options,
+                'correct_options' => $correctOptions,
+            ],
+        ];
+    }
+
+    private function questionTypeFromImport(string $value): ?string
+    {
+        $normalized = str($value)
+            ->lower()
+            ->replace(['/', '-', ' '], '_')
+            ->toString();
+
+        return match ($normalized) {
+            '', 'single', 'single_choice', 'multiple_choice_single' => Question::TYPE_SINGLE_CHOICE,
+            'multiple', 'multiple_correct', 'multiple_choice' => Question::TYPE_MULTIPLE_CHOICE,
+            'true_false', 'true_or_false', 'boolean' => Question::TYPE_TRUE_FALSE,
+            'match', 'matching' => Question::TYPE_MATCHING,
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     * @return array<int, array{text: string, match_text: string|null}>
+     */
+    private function optionsFromImportRow(array $row): array
+    {
+        $options = [];
+
+        for ($index = 1; $index <= 10; $index++) {
+            $optionText = trim($row["option_{$index}"] ?? '');
+
+            if ($optionText === '') {
+                continue;
+            }
+
+            $options[] = [
+                'text' => $optionText,
+                'match_text' => blank($row["match_{$index}"] ?? null) ? null : trim($row["match_{$index}"]),
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @param  array<int, array{text: string, match_text?: string|null}>  $options
+     * @return array<int, int>
+     */
+    private function correctOptionsFromImportRow(string $value, array $options): array
+    {
+        $parts = preg_split('/[,;|]/', $value) ?: [];
+        $correctOptions = [];
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+
+            if ($part === '') {
+                continue;
+            }
+
+            if (ctype_digit($part)) {
+                $index = (int) $part - 1;
+
+                if (array_key_exists($index, $options)) {
+                    $correctOptions[] = $index;
+                }
+
+                continue;
+            }
+
+            foreach ($options as $index => $option) {
+                if (strtolower($option['text']) === strtolower($part)) {
+                    $correctOptions[] = $index;
+                }
+            }
+        }
+
+        return collect($correctOptions)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function booleanFromImport(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['1', 'yes', 'true', 'active'], true);
+    }
+
+    /**
+     * @param  array{category_name: string, subcategory_name: string}  $data
+     */
+    private function resolveImportSubcategory(array $data): Category
+    {
+        $parent = Category::firstOrCreate(
+            ['name' => $data['category_name']],
+            ['is_active' => true],
+        );
+
+        if (! $parent->is_active) {
+            $parent->update(['is_active' => true]);
+        }
+
+        $subcategory = Category::query()
+            ->where('parent_id', $parent->id)
+            ->where('name', $data['subcategory_name'])
+            ->first();
+
+        if ($subcategory) {
+            if (! $subcategory->is_active) {
+                $subcategory->update(['is_active' => true]);
+            }
+
+            return $subcategory;
+        }
+
+        return Category::create([
+            'parent_id' => $parent->id,
+            'name' => $data['subcategory_name'],
+            'is_active' => true,
+        ]);
+    }
+
+    /**
      * Get active categories for question forms.
      */
-    private function activeCategories()
+    private function parentCategories()
     {
         return Category::query()
+            ->with(['subcategories' => fn ($query) => $query
+                ->where('is_active', true)
+                ->orderBy('name')])
             ->where('is_active', true)
+            ->whereNull('parent_id')
             ->orderBy('name')
             ->get();
     }

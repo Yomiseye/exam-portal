@@ -16,7 +16,7 @@
                 <form method="POST" action="{{ route('admin.categories.store') }}" class="p-6 space-y-6">
                     @csrf
 
-                    @include('admin.categories.partials.form', ['category' => null])
+                    @include('admin.categories.partials.form', ['category' => null, 'parentCategories' => $parentCategories])
 
                     <div class="flex justify-end">
                         <x-primary-button>Create Category</x-primary-button>

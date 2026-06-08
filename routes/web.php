@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ExamController;
+use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\DashboardRedirectController;
@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('students', StudentController::class)->only(['index', 'create', 'store']);
         Route::post('/students/{student}/assignments', [StudentController::class, 'assignExam'])->name('students.assignments.store');
         Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::get('/questions/import', [QuestionController::class, 'import'])->name('questions.import');
+        Route::post('/questions/import', [QuestionController::class, 'storeImport'])->name('questions.import.store');
         Route::resource('questions', QuestionController::class)->except(['show']);
         Route::resource('exams', ExamController::class)->except(['show']);
         Route::get('/results', [ResultController::class, 'index'])->name('results.index');

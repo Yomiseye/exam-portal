@@ -1,5 +1,21 @@
 @php
     $questionType = old('question_type', $question?->question_type ?? \App\Models\Question::TYPE_SINGLE_CHOICE);
+    $selectedParentCategoryId = old('parent_category_id', $question?->category?->parent_id);
+    $selectedSubcategoryId = old('subcategory_id', $question?->category?->parent_id ? $question?->category_id : null);
+    $categoryRows = $categories
+        ->map(fn ($category) => [
+            'id' => $category->id,
+            'name' => $category->name,
+            'subcategories' => $category->subcategories
+                ->map(fn ($subcategory) => [
+                    'id' => $subcategory->id,
+                    'name' => $subcategory->name,
+                ])
+                ->values()
+                ->all(),
+        ])
+        ->values()
+        ->all();
     $optionRows = old('options');
 
     if (! $optionRows) {
@@ -42,6 +58,9 @@
 <div
     x-data="{
         questionType: @js($questionType),
+        categoryId: @js($selectedParentCategoryId ? (int) $selectedParentCategoryId : null),
+        subcategoryId: @js($selectedSubcategoryId ? (int) $selectedSubcategoryId : null),
+        categories: @js($categoryRows),
         options: @js($optionRows),
         correctOption: @js($correctOption === false ? null : $correctOption),
         correctOptions: @js($correctOptions),
@@ -53,6 +72,9 @@
                     this.correctOption = null;
                 }
             });
+        },
+        subcategories() {
+            return this.categories.find((category) => category.id === this.categoryId)?.subcategories ?? [];
         },
         addOption() {
             this.options.push({ text: '', match_text: '' });
@@ -76,20 +98,66 @@
         },
     }"
 >
-<div class="grid gap-6 md:grid-cols-3">
+<div class="grid gap-6 md:grid-cols-2">
     <div>
-        <x-input-label for="category_id" value="Category" />
-        <select id="category_id" name="category_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
-            <option value="">Choose category</option>
-            @foreach ($categories as $category)
-                <option value="{{ $category->id }}" @selected((string) old('category_id', $question?->category_id) === (string) $category->id)>
-                    {{ $category->name }}
-                </option>
-            @endforeach
+        <x-input-label for="parent_category_id" value="Category" />
+        <select
+            id="parent_category_id"
+            name="parent_category_id"
+            x-model.number="categoryId"
+            @change="subcategoryId = null"
+            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+        >
+            <option value="">Choose existing category</option>
+            <template x-for="category in categories" :key="category.id">
+                <option :value="category.id" x-text="category.name"></option>
+            </template>
         </select>
-        <x-input-error class="mt-2" :messages="$errors->get('category_id')" />
+        <x-input-error class="mt-2" :messages="$errors->get('parent_category_id')" />
+
+        <div class="mt-3">
+            <x-input-label for="new_category_name" value="Or Add New Category" />
+            <x-text-input
+                id="new_category_name"
+                name="new_category_name"
+                type="text"
+                class="mt-1 block w-full"
+                :value="old('new_category_name')"
+            />
+            <x-input-error class="mt-2" :messages="$errors->get('new_category_name')" />
+        </div>
     </div>
 
+    <div>
+        <x-input-label for="subcategory_id" value="Subcategory" />
+        <select
+            id="subcategory_id"
+            name="subcategory_id"
+            x-model.number="subcategoryId"
+            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+        >
+            <option value="">Choose existing subcategory</option>
+            <template x-for="subcategory in subcategories()" :key="subcategory.id">
+                <option :value="subcategory.id" x-text="subcategory.name"></option>
+            </template>
+        </select>
+        <x-input-error class="mt-2" :messages="$errors->get('subcategory_id')" />
+
+        <div class="mt-3">
+            <x-input-label for="new_subcategory_name" value="Or Add New Subcategory" />
+            <x-text-input
+                id="new_subcategory_name"
+                name="new_subcategory_name"
+                type="text"
+                class="mt-1 block w-full"
+                :value="old('new_subcategory_name')"
+            />
+            <x-input-error class="mt-2" :messages="$errors->get('new_subcategory_name')" />
+        </div>
+    </div>
+</div>
+
+<div class="grid gap-6 md:grid-cols-2">
     <div>
         <x-input-label for="question_type" value="Question Type" />
         <select id="question_type" name="question_type" x-model="questionType" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
