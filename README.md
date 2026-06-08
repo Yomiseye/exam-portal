@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Exam Portal
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel-based online exam portal for admin-managed students, question banks, timed attempts, autosaved answers, retake permissions, Excel question import, and category/subcategory question organization.
 
-## About Laravel
+## Requirements
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3+
+- Composer
+- Node.js and npm
+- MySQL or another Laravel-supported database
+- PHP extensions commonly required by Laravel, plus `zip` for Excel imports
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Local Setup
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+copy .env.example .env
+php artisan key:generate
+npm install
+npm run build
+php artisan migrate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Set database credentials in `.env` before running migrations.
 
-## Contributing
+## First Admin User
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The admin seeder no longer creates a default password. Set these values in `.env` before seeding:
 
-## Code of Conduct
+```env
+ADMIN_NAME="Admin"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="use-a-strong-password"
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Then run:
 
-## Security Vulnerabilities
+```bash
+php artisan db:seed --class=AdminUserSeeder
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+If `ADMIN_EMAIL` or `ADMIN_PASSWORD` is missing, the seeder skips admin creation.
 
-## License
+## Production Environment
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Use production-safe values:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true
+
+MAIL_MAILER=smtp
+MAIL_FROM_ADDRESS="no-reply@your-domain.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+Configure real database and mail credentials on the host. Public student registration is disabled; students are created by admins only.
+
+## Deployment Commands
+
+Run these on the server after pulling the latest code:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+If this is the first deployment, seed the first admin after setting `ADMIN_*` values:
+
+```bash
+php artisan db:seed --class=AdminUserSeeder --force
+```
+
+## Key Production Notes
+
+- Email verification is disabled for now because students are admin-created.
+- Student self-registration is disabled.
+- Account self-delete is disabled to preserve exam and attempt history.
+- Excel imports require `.xlsx` files and use the first worksheet.
+- Excel import columns include `category`, `subcategory`, `question_type`, `question`, `difficulty`, `option_1`, `option_2`, `correct_answers`, `match_1`, `match_2`, `explanation`, and `is_active`.
+
+## Verification
+
+Before deploying, run:
+
+```bash
+php artisan test
+npm run build
+```

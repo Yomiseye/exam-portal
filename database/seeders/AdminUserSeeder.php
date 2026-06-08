@@ -13,11 +13,20 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
+        $email = env('ADMIN_EMAIL');
+        $password = env('ADMIN_PASSWORD');
+
+        if (! $email || ! $password) {
+            $this->command?->warn('ADMIN_EMAIL and ADMIN_PASSWORD are not set. Skipping admin user seeding.');
+
+            return;
+        }
+
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => $email],
             [
-                'name' => 'Admin',
-                'password' => Hash::make('password'),
+                'name' => env('ADMIN_NAME', 'Admin'),
+                'password' => Hash::make($password),
                 'role' => 'admin',
             ],
         );

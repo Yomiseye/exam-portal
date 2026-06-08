@@ -12,15 +12,13 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboardControll
 use App\Http\Controllers\Student\ExamController as StudentExamController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::view('/', 'welcome');
 
 Route::get('/dashboard', DashboardRedirectController::class)
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'verified', 'role:admin'])
+Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -37,7 +35,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::post('/results/{attempt}/retake', [ResultController::class, 'grantRetake'])->name('results.retake');
     });
 
-Route::middleware(['auth', 'verified', 'role:student'])
+Route::middleware(['auth', 'role:student'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
@@ -53,7 +51,6 @@ Route::middleware(['auth', 'verified', 'role:student'])
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';
