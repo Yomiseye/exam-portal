@@ -41,6 +41,27 @@
                         </div>
                     </div>
 
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div>
+                            <x-input-label for="student_group_id" value="Student Group" />
+                            <select id="student_group_id" name="student_group_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">No group</option>
+                                @foreach ($groups as $group)
+                                    <option value="{{ $group->id }}" @selected((string) old('student_group_id') === (string) $group->id)>
+                                        {{ $group->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-2" :messages="$errors->get('student_group_id')" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="new_group_name" value="Or Add New Group" />
+                            <x-text-input id="new_group_name" name="new_group_name" type="text" class="mt-1 block w-full" :value="old('new_group_name')" />
+                            <x-input-error class="mt-2" :messages="$errors->get('new_group_name')" />
+                        </div>
+                    </div>
+
                     <div class="flex justify-end">
                         <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
                             Register Student

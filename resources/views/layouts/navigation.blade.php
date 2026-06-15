@@ -21,6 +21,10 @@
                             {{ __('Students') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('admin.student-groups.index')" :active="request()->routeIs('admin.student-groups.*')">
+                            {{ __('Groups') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">
                             {{ __('Categories') }}
                         </x-nav-link>
@@ -96,6 +100,10 @@
             @if (Auth::user()->isAdmin())
                 <x-responsive-nav-link :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')">
                     {{ __('Students') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.student-groups.index')" :active="request()->routeIs('admin.student-groups.*')">
+                    {{ __('Groups') }}
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">

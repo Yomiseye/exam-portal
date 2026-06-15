@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'pass_mark',
     'is_randomized',
     'show_corrections',
+    'allow_pause',
     'is_active',
 ])]
 class Exam extends Model
@@ -35,6 +36,7 @@ class Exam extends Model
             'pass_mark' => 'integer',
             'is_randomized' => 'boolean',
             'show_corrections' => 'boolean',
+            'allow_pause' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -53,6 +55,11 @@ class Exam extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(ExamAssignment::class);
+    }
+
+    public function groupAssignments(): HasMany
+    {
+        return $this->hasMany(GroupExamAssignment::class);
     }
 
     public function retakePermissions(): HasMany

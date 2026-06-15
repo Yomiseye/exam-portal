@@ -98,6 +98,24 @@ class ExamController extends Controller
     }
 
     /**
+     * Permanently delete an exam if it has not been attempted.
+     */
+    public function permanentDestroy(Exam $exam): RedirectResponse
+    {
+        if ($exam->attempts()->exists()) {
+            return back()->withErrors([
+                'exam' => 'This exam has attempt history and cannot be permanently deleted. Deactivate it instead.',
+            ]);
+        }
+
+        $exam->delete();
+
+        return redirect()
+            ->route('admin.exams.index')
+            ->with('status', 'Exam permanently deleted successfully.');
+    }
+
+    /**
      * Validate exam form data.
      *
      * @return array{exam: array<string, mixed>, category_ids: array<int, int>}
@@ -117,6 +135,7 @@ class ExamController extends Controller
             ],
             'is_randomized' => ['sometimes', 'boolean'],
             'show_corrections' => ['sometimes', 'boolean'],
+            'allow_pause' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -129,6 +148,7 @@ class ExamController extends Controller
                 'pass_mark' => $validated['pass_mark'],
                 'is_randomized' => $request->boolean('is_randomized'),
                 'show_corrections' => $request->boolean('show_corrections'),
+                'allow_pause' => $request->boolean('allow_pause'),
                 'is_active' => $request->boolean('is_active'),
             ],
             'category_ids' => array_values(array_unique(array_map('intval', $validated['category_ids']))),

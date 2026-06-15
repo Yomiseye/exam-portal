@@ -18,6 +18,42 @@
                 </div>
             @endif
 
+            @if ($errors->any())
+                <div class="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
+            <div class="mb-6 bg-white p-4 shadow-sm sm:rounded-lg">
+                <form method="GET" action="{{ route('admin.categories.index') }}" class="grid gap-4 md:grid-cols-3">
+                    <div>
+                        <x-input-label for="search" value="Search" />
+                        <x-text-input
+                            id="search"
+                            name="search"
+                            type="search"
+                            class="mt-1 block w-full"
+                            :value="request('search')"
+                            placeholder="Category, parent, description"
+                        />
+                    </div>
+
+                    <div>
+                        <x-input-label for="status" value="Status" />
+                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">All statuses</option>
+                            <option value="active" @selected(request('status') === 'active')>Active</option>
+                            <option value="inactive" @selected(request('status') === 'inactive')>Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-end gap-3">
+                        <x-primary-button>Filter</x-primary-button>
+                        <a href="{{ route('admin.categories.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Reset</a>
+                    </div>
+                </form>
+            </div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -59,6 +95,14 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        <form method="POST" action="{{ route('admin.categories.permanent-destroy', $category) }}" class="inline ms-4">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this category? This only works when it has no subcategories, questions, or exams attached.')">
+                                                Delete
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty

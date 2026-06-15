@@ -167,6 +167,172 @@
             .portal-app .bg-blue-50 {
                 border: 1px solid #bfdbfe;
             }
+
+            .portal-page {
+                padding-top: 2rem;
+                padding-bottom: 3rem;
+            }
+
+            .portal-container {
+                width: 100%;
+                max-width: 80rem;
+                margin-inline: auto;
+                padding-inline: 1rem;
+            }
+
+            @media (min-width: 640px) {
+                .portal-container {
+                    padding-inline: 1.5rem;
+                }
+            }
+
+            @media (min-width: 1024px) {
+                .portal-container {
+                    padding-inline: 2rem;
+                }
+            }
+
+            .portal-panel {
+                border: 1px solid rgba(15, 23, 42, 0.08);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.96);
+                box-shadow: var(--portal-shadow);
+            }
+
+            .portal-panel-muted {
+                border: 1px solid rgba(15, 23, 42, 0.08);
+                border-radius: 8px;
+                background: #f8fafc;
+            }
+
+            .portal-kpi {
+                border: 1px solid rgba(15, 23, 42, 0.08);
+                border-radius: 8px;
+                background: #ffffff;
+                padding: 1rem;
+                box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+            }
+
+            .portal-button-primary,
+            .portal-button-secondary,
+            .portal-button-danger,
+            .portal-button-muted {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 2.5rem;
+                border-radius: 8px;
+                padding: 0.625rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 650;
+                line-height: 1;
+                transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+            }
+
+            .portal-button-primary {
+                border: 1px solid transparent;
+                background: var(--portal-primary);
+                color: #ffffff;
+                box-shadow: 0 10px 22px rgba(15, 118, 110, 0.18);
+            }
+
+            .portal-button-primary:hover {
+                background: var(--portal-primary-dark);
+            }
+
+            .portal-button-secondary {
+                border: 1px solid var(--portal-border);
+                background: #ffffff;
+                color: #334155;
+            }
+
+            .portal-button-secondary:hover {
+                background: #f8fafc;
+                border-color: #cbd5e1;
+            }
+
+            .portal-button-danger {
+                border: 1px solid transparent;
+                background: var(--portal-danger);
+                color: #ffffff;
+            }
+
+            .portal-button-danger:hover {
+                background: #991b1b;
+            }
+
+            .portal-button-muted {
+                border: 1px solid #e2e8f0;
+                background: #f1f5f9;
+                color: #64748b;
+            }
+
+            .portal-badge {
+                display: inline-flex;
+                align-items: center;
+                width: fit-content;
+                border-radius: 999px;
+                padding: 0.25rem 0.625rem;
+                font-size: 0.75rem;
+                font-weight: 650;
+                line-height: 1.2;
+            }
+
+            .portal-badge-success {
+                background: #dcfce7;
+                color: #166534;
+            }
+
+            .portal-badge-info {
+                background: #dbeafe;
+                color: #1e40af;
+            }
+
+            .portal-badge-warning {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .portal-badge-danger {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            .portal-badge-neutral {
+                background: #f1f5f9;
+                color: #475569;
+            }
+
+            .portal-alert {
+                border-radius: 8px;
+                border: 1px solid transparent;
+                padding: 1rem;
+                font-size: 0.875rem;
+            }
+
+            .portal-alert-info {
+                border-color: #bfdbfe;
+                background: #eff6ff;
+                color: #1d4ed8;
+            }
+
+            .portal-alert-success {
+                border-color: #bbf7d0;
+                background: #f0fdf4;
+                color: #166534;
+            }
+
+            .portal-alert-warning {
+                border-color: #fde68a;
+                background: #fffbeb;
+                color: #92400e;
+            }
+
+            .portal-alert-danger {
+                border-color: #fecaca;
+                background: #fef2f2;
+                color: #991b1b;
+            }
         </style>
     </head>
     <body class="portal-app font-sans antialiased">

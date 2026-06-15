@@ -1,4 +1,10 @@
 <x-app-layout>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Result
@@ -40,7 +46,82 @@
             </div>
 
             @if ($attempt->exam->show_corrections)
-                <div class="mt-6 space-y-4">
+                <div
+                    class="mt-6 space-y-4"
+                    x-data="{
+                        current: 0,
+                        filter: 'all',
+                        answers: @js($attempt->answers->values()->map(fn ($answer) => ['correct' => (bool) $answer->is_correct])->all()),
+                        visibleIndexes() {
+                            return this.answers
+                                .map((answer, index) => ({ answer, index }))
+                                .filter(({ answer }) => this.filter === 'all' || (this.filter === 'incorrect' ? ! answer.correct : answer.correct))
+                                .map(({ index }) => index);
+                        },
+                        visibleCount() {
+                            return this.visibleIndexes().length;
+                        },
+                        visiblePosition() {
+                            const position = this.visibleIndexes().indexOf(this.current);
+                            return position === -1 ? 0 : position;
+                        },
+                        setFilter(value) {
+                            this.filter = value;
+                            this.current = this.visibleIndexes()[0] ?? 0;
+                        },
+                        previous() {
+                            const indexes = this.visibleIndexes();
+                            const position = indexes.indexOf(this.current);
+
+                            if (position > 0) {
+                                this.current = indexes[position - 1];
+                            }
+                        },
+                        next() {
+                            const indexes = this.visibleIndexes();
+                            const position = indexes.indexOf(this.current);
+
+                            if (position < indexes.length - 1) {
+                                this.current = indexes[position + 1];
+                            }
+                        },
+                    }"
+                >
+                    <div class="rounded-md bg-white p-4 shadow-sm">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="text-sm text-gray-600">
+                                Review <span x-text="visibleCount() ? visiblePosition() + 1 : 0"></span> of <span x-text="visibleCount()"></span>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"
+                                    :class="filter === 'all' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                                    @click="setFilter('all')"
+                                >
+                                    All
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"
+                                    :class="filter === 'incorrect' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                                    @click="setFilter('incorrect')"
+                                >
+                                    Incorrect
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"
+                                    :class="filter === 'correct' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                                    @click="setFilter('correct')"
+                                >
+                                    Correct
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     @foreach ($attempt->answers as $answer)
                         @php
                             $questionType = $answer->question->question_type;
@@ -50,11 +131,25 @@
                             $matchingAnswer = $answer->matching_answer ?? [];
                         @endphp
 
-                        <div class="bg-white p-6 shadow-sm sm:rounded-lg">
+                        <div
+                            class="bg-white p-6 shadow-sm sm:rounded-lg"
+                            x-show="current === {{ $loop->index }} && visibleIndexes().includes({{ $loop->index }})"
+                            x-cloak
+                        >
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <div class="text-sm font-medium text-gray-500">Question {{ $loop->iteration }}</div>
                                     <div class="mt-2 text-gray-900">{{ $answer->question->question_text }}</div>
+
+                                    @if ($answer->question->image_path)
+                                        <div class="mt-4">
+                                            <img
+                                                src="{{ $answer->question->imageUrl() }}"
+                                                alt="Question image"
+                                                class="max-h-80 w-full rounded-md border border-gray-200 object-contain"
+                                            >
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $answer->is_correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
@@ -99,8 +194,38 @@
                                     {{ $answer->question->explanation }}
                                 </div>
                             @endif
+
+                            @if ($answer->question->explanation_image_path)
+                                <div class="mt-3">
+                                    <img
+                                        src="{{ $answer->question->explanationImageUrl() }}"
+                                        alt="Explanation image"
+                                        class="max-h-80 w-full rounded-md border border-gray-200 object-contain"
+                                    >
+                                </div>
+                            @endif
                         </div>
                     @endforeach
+
+                    <div class="flex items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="visiblePosition() === 0"
+                            @click="previous"
+                        >
+                            Previous
+                        </button>
+
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                            :disabled="visiblePosition() >= visibleCount() - 1"
+                            @click="next"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             @endif
         </div>

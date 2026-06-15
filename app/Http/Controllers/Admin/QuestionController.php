@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Question;
+use App\Models\QuestionTag;
 use App\Services\QuestionImportSpreadsheet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -21,8 +23,20 @@ class QuestionController extends Controller
     public function index(Request $request): View
     {
         $questions = Question::query()
-            ->with('category.parent')
+            ->with('category.parent', 'tags')
             ->withCount('options')
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->trim()->toString().'%';
+
+                $query->where(function ($query) use ($search): void {
+                    $query->where('question_text', 'like', $search)
+                        ->orWhere('question_type', 'like', $search)
+                        ->orWhere('difficulty', 'like', $search)
+                        ->orWhereHas('category', fn ($query) => $query->where('name', 'like', $search))
+                        ->orWhereHas('category.parent', fn ($query) => $query->where('name', 'like', $search))
+                        ->orWhereHas('tags', fn ($query) => $query->where('name', 'like', $search));
+                });
+            })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('difficulty'), fn ($query) => $query->where('difficulty', $request->string('difficulty')))
             ->latest()
@@ -55,6 +69,10 @@ class QuestionController extends Controller
     {
         return view('admin.questions.import', [
             'categories' => $this->parentCategories(),
+            'sheets' => [],
+            'importPath' => null,
+            'importFileName' => null,
+            'sheetError' => null,
         ]);
     }
 
@@ -65,12 +83,15 @@ class QuestionController extends Controller
     {
         $data = $this->validatedQuestionData($request);
 
-        DB::transaction(function () use ($data): void {
+        DB::transaction(function () use ($request, $data): void {
             $subcategory = $this->resolveSubcategory($data['category']);
             $questionData = $data['question'];
             $questionData['category_id'] = $subcategory->id;
 
             $question = Question::create($questionData);
+            $this->syncQuestionImage($request, $question);
+            $this->syncExplanationImage($request, $question);
+            $this->syncTags($question, $data['tags']);
 
             $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
@@ -83,13 +104,30 @@ class QuestionController extends Controller
     /**
      * Import questions from an uploaded Excel workbook.
      */
-    public function storeImport(Request $request, QuestionImportSpreadsheet $spreadsheet): RedirectResponse
+    public function storeImport(Request $request, QuestionImportSpreadsheet $spreadsheet): RedirectResponse|View
     {
         $validated = $request->validate([
-            'questions_file' => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+            'questions_file' => ['nullable', 'required_without:import_path', 'file', 'mimes:xlsx', 'max:5120'],
+            'import_path' => ['nullable', 'string'],
+            'sheet_index' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $rows = $spreadsheet->rows($validated['questions_file']->getRealPath());
+        [$path, $temporaryImportPath, $sheetIndex, $sheetSelectionView] = $this->resolveImportSheet(
+            $request,
+            $spreadsheet,
+            'questions_file',
+            'admin.questions.import',
+        );
+
+        if ($sheetSelectionView) {
+            return $sheetSelectionView;
+        }
+
+        $rows = $spreadsheet->rows($path, $sheetIndex);
+
+        if ($temporaryImportPath) {
+            Storage::disk('local')->delete($temporaryImportPath);
+        }
 
         if ($rows === []) {
             return back()
@@ -126,6 +164,7 @@ class QuestionController extends Controller
                 $questionData['category_id'] = $subcategory->id;
 
                 $question = Question::create($questionData);
+                $this->syncTags($question, $data['tags']);
 
                 $this->syncOptions($question, $data['options'], $data['correct_options']);
             }
@@ -137,11 +176,62 @@ class QuestionController extends Controller
     }
 
     /**
+     * Apply a bulk action to selected questions.
+     */
+    public function bulkAction(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['deactivate', 'delete'])],
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer', 'exists:questions,id'],
+        ]);
+
+        $questions = Question::query()
+            ->whereIn('id', $validated['question_ids'])
+            ->get();
+
+        if ($validated['action'] === 'deactivate') {
+            Question::query()
+                ->whereIn('id', $questions->pluck('id'))
+                ->update(['is_active' => false]);
+
+            return back()->with('status', $questions->count().' question(s) deactivated successfully.');
+        }
+
+        $deleted = 0;
+        $blocked = 0;
+
+        DB::transaction(function () use ($questions, &$deleted, &$blocked): void {
+            foreach ($questions as $question) {
+                if ($question->attemptAnswers()->exists()) {
+                    $blocked++;
+
+                    continue;
+                }
+
+                $this->deleteQuestionImage($question);
+                $this->deleteExplanationImage($question);
+                $question->tags()->detach();
+                $question->delete();
+                $deleted++;
+            }
+        });
+
+        $message = "{$deleted} question(s) permanently deleted.";
+
+        if ($blocked > 0) {
+            $message .= " {$blocked} question(s) were skipped because they have exam history.";
+        }
+
+        return back()->with('status', $message);
+    }
+
+    /**
      * Show the form for editing a question.
      */
     public function edit(Question $question): View
     {
-        $question->load('options');
+        $question->load('options', 'tags');
 
         return view('admin.questions.edit', [
             'question' => $question,
@@ -156,12 +246,15 @@ class QuestionController extends Controller
     {
         $data = $this->validatedQuestionData($request);
 
-        DB::transaction(function () use ($question, $data): void {
+        DB::transaction(function () use ($request, $question, $data): void {
             $subcategory = $this->resolveSubcategory($data['category']);
             $questionData = $data['question'];
             $questionData['category_id'] = $subcategory->id;
 
             $question->update($questionData);
+            $this->syncQuestionImage($request, $question);
+            $this->syncExplanationImage($request, $question);
+            $this->syncTags($question, $data['tags']);
 
             $this->syncOptions($question, $data['options'], $data['correct_options']);
         });
@@ -181,6 +274,29 @@ class QuestionController extends Controller
         return redirect()
             ->route('admin.questions.index')
             ->with('status', 'Question deactivated successfully.');
+    }
+
+    /**
+     * Permanently delete a question if it has not been used in exam attempts.
+     */
+    public function permanentDestroy(Question $question): RedirectResponse
+    {
+        if ($question->attemptAnswers()->exists()) {
+            return back()->withErrors([
+                'question' => 'This question has exam history and cannot be permanently deleted. Deactivate it instead.',
+            ]);
+        }
+
+        DB::transaction(function () use ($question): void {
+            $this->deleteQuestionImage($question);
+            $this->deleteExplanationImage($question);
+            $question->tags()->detach();
+            $question->delete();
+        });
+
+        return redirect()
+            ->route('admin.questions.index')
+            ->with('status', 'Question permanently deleted successfully.');
     }
 
     /**
@@ -208,6 +324,11 @@ class QuestionController extends Controller
             ],
             'new_subcategory_name' => ['nullable', 'string', 'max:255', 'unique:categories,name'],
             'question_text' => ['required', 'string'],
+            'tags' => ['nullable', 'string', 'max:1000'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_image' => ['sometimes', 'boolean'],
+            'explanation_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_explanation_image' => ['sometimes', 'boolean'],
             'question_type' => ['required', Rule::in(array_keys(Question::TYPES))],
             'explanation' => ['nullable', 'string'],
             'difficulty' => ['required', Rule::in(['easy', 'medium', 'hard'])],
@@ -324,7 +445,81 @@ class QuestionController extends Controller
             ],
             'options' => array_values($validated['options']),
             'correct_options' => $this->correctOptionIndexes($request),
+            'tags' => $this->tagNames($validated['tags'] ?? ''),
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $tagNames
+     */
+    private function syncTags(Question $question, array $tagNames): void
+    {
+        $tagIds = collect($tagNames)
+            ->map(fn (string $name) => QuestionTag::firstOrCreate(['name' => $name])->id)
+            ->all();
+
+        $question->tags()->sync($tagIds);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function tagNames(string $value): array
+    {
+        return collect(preg_split('/[,;|]/', $value) ?: [])
+            ->map(fn ($tag) => str($tag)->trim()->lower()->toString())
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function syncQuestionImage(Request $request, Question $question): void
+    {
+        if ($request->boolean('remove_image') || $request->hasFile('image')) {
+            $this->deleteQuestionImage($question);
+
+            if ($request->boolean('remove_image') && ! $request->hasFile('image')) {
+                $question->update(['image_path' => null]);
+            }
+        }
+
+        if ($request->hasFile('image')) {
+            $question->update([
+                'image_path' => $request->file('image')->store('question-images', 'public'),
+            ]);
+        }
+    }
+
+    private function deleteQuestionImage(Question $question): void
+    {
+        if ($question->image_path) {
+            Storage::disk('public')->delete($question->image_path);
+        }
+    }
+
+    private function syncExplanationImage(Request $request, Question $question): void
+    {
+        if ($request->boolean('remove_explanation_image') || $request->hasFile('explanation_image')) {
+            $this->deleteExplanationImage($question);
+
+            if ($request->boolean('remove_explanation_image') && ! $request->hasFile('explanation_image')) {
+                $question->update(['explanation_image_path' => null]);
+            }
+        }
+
+        if ($request->hasFile('explanation_image')) {
+            $question->update([
+                'explanation_image_path' => $request->file('explanation_image')->store('question-images', 'public'),
+            ]);
+        }
+    }
+
+    private function deleteExplanationImage(Question $question): void
+    {
+        if ($question->explanation_image_path) {
+            Storage::disk('public')->delete($question->explanation_image_path);
+        }
     }
 
     /**
@@ -494,6 +689,7 @@ class QuestionController extends Controller
                 ],
                 'options' => $options,
                 'correct_options' => $correctOptions,
+                'tags' => $this->tagNames($row['tags'] ?? ''),
             ],
         ];
     }
@@ -580,6 +776,68 @@ class QuestionController extends Controller
     private function booleanFromImport(string $value): bool
     {
         return in_array(strtolower(trim($value)), ['1', 'yes', 'true', 'active'], true);
+    }
+
+    /**
+     * @return array{0: string, 1: string|null, 2: int, 3: View|null}
+     */
+    private function resolveImportSheet(
+        Request $request,
+        QuestionImportSpreadsheet $spreadsheet,
+        string $fileInput,
+        string $view,
+    ): array {
+        if ($request->filled('import_path')) {
+            $temporaryImportPath = $request->string('import_path')->toString();
+
+            if (! str_starts_with($temporaryImportPath, 'imports/') || ! Storage::disk('local')->exists($temporaryImportPath)) {
+                abort(422, 'The uploaded spreadsheet is no longer available. Please upload it again.');
+            }
+
+            $path = Storage::disk('local')->path($temporaryImportPath);
+            $sheets = $spreadsheet->sheets($path);
+            $sheetIndex = $request->integer('sheet_index', -1);
+
+            if (! collect($sheets)->pluck('index')->contains($sheetIndex)) {
+                return [
+                    $path,
+                    $temporaryImportPath,
+                    0,
+                    view($view, [
+                        'categories' => $this->parentCategories(),
+                        'sheets' => $sheets,
+                        'importPath' => $temporaryImportPath,
+                        'importFileName' => basename($temporaryImportPath),
+                        'sheetError' => 'Choose the worksheet to import.',
+                    ]),
+                ];
+            }
+
+            return [$path, $temporaryImportPath, $sheetIndex, null];
+        }
+
+        $uploadedFile = $request->file($fileInput);
+        $path = $uploadedFile->getRealPath();
+        $sheets = $spreadsheet->sheets($path);
+
+        if (count($sheets) > 1 && ! $request->filled('sheet_index')) {
+            $temporaryImportPath = $uploadedFile->store('imports', 'local');
+
+            return [
+                Storage::disk('local')->path($temporaryImportPath),
+                $temporaryImportPath,
+                0,
+                view($view, [
+                    'categories' => $this->parentCategories(),
+                    'sheets' => $sheets,
+                    'importPath' => $temporaryImportPath,
+                    'importFileName' => $uploadedFile->getClientOriginalName(),
+                    'sheetError' => null,
+                ]),
+            ];
+        }
+
+        return [$path, null, (int) ($sheets[0]['index'] ?? 0), null];
     }
 
     /**

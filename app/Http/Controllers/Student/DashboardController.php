@@ -13,24 +13,36 @@ class DashboardController extends Controller
      */
     public function __invoke(): View
     {
+        $student = request()->user();
+        $groupId = $student->studentGroup?->is_active ? $student->student_group_id : null;
+
         $exams = Exam::query()
             ->with([
                 'categories.parent',
-                'assignments' => fn ($query) => $query->where('user_id', request()->user()->id),
+                'assignments' => fn ($query) => $query->where('user_id', $student->id),
+                'groupAssignments' => fn ($query) => $groupId
+                    ? $query->where('student_group_id', $groupId)
+                    : $query->whereRaw('1 = 0'),
             ])
             ->where('is_active', true)
-            ->whereHas('assignments', fn ($query) => $query->where('user_id', request()->user()->id))
+            ->where(function ($query) use ($student, $groupId): void {
+                $query->whereHas('assignments', fn ($query) => $query->where('user_id', $student->id));
+
+                if ($groupId) {
+                    $query->orWhereHas('groupAssignments', fn ($query) => $query->where('student_group_id', $groupId));
+                }
+            })
             ->latest()
             ->get();
 
-        $attempts = request()->user()
+        $attempts = $student
             ->attempts()
             ->with('exam')
             ->latest()
             ->get();
 
         $latestAttemptsByExam = $attempts->unique('exam_id')->keyBy('exam_id');
-        $unusedRetakesByExam = request()->user()
+        $unusedRetakesByExam = $student
             ->retakePermissions()
             ->whereNull('used_at')
             ->get()
@@ -39,9 +51,16 @@ class DashboardController extends Controller
         $exams->each(function (Exam $exam) use ($latestAttemptsByExam, $unusedRetakesByExam): void {
             $latestAttempt = $latestAttemptsByExam->get($exam->id);
             $unusedRetake = $unusedRetakesByExam->get($exam->id);
-            $assignment = $exam->assignments->first();
+            $directAssignment = $exam->assignments->first();
+            $groupAssignment = $exam->groupAssignments->first();
+            $assignment = match (true) {
+                $directAssignment?->isAvailable() => $directAssignment,
+                $groupAssignment?->isAvailable() => $groupAssignment,
+                default => $directAssignment ?? $groupAssignment,
+            };
 
             $status = match (true) {
+                $latestAttempt?->status === 'in_progress' && $latestAttempt->isPaused() => 'paused',
                 $latestAttempt?->status === 'in_progress' => 'in_progress',
                 $assignment?->available_from->isFuture() => 'scheduled',
                 $assignment?->available_until->isPast() => 'closed',

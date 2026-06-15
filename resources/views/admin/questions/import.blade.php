@@ -15,7 +15,7 @@
             <div class="bg-white p-6 shadow-sm sm:rounded-lg">
                 <h3 class="text-lg font-medium text-gray-900">Excel Format</h3>
                 <p class="mt-1 text-sm text-gray-600">
-                    Use the first worksheet and keep the first row as headers. Missing categories and subcategories will be created automatically.
+                    Keep the first row as headers. If your workbook has multiple worksheets, you will be asked which sheet to import.
                 </p>
 
                 <div class="mt-4 overflow-x-auto">
@@ -69,6 +69,11 @@
                                 <td class="px-3 py-2 text-gray-600">Abuja, Accra</td>
                             </tr>
                             <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">tags</td>
+                                <td class="px-3 py-2 text-gray-600">No</td>
+                                <td class="px-3 py-2 text-gray-600">agile, risk, calculations</td>
+                            </tr>
+                            <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">explanation, is_active</td>
                                 <td class="px-3 py-2 text-gray-600">No</td>
                                 <td class="px-3 py-2 text-gray-600">Optional note, yes</td>
@@ -82,24 +87,48 @@
                 <form method="POST" action="{{ route('admin.questions.import.store') }}" enctype="multipart/form-data" class="space-y-6">
                     @csrf
 
-                    <div>
-                        <x-input-label for="questions_file" value="Excel File (.xlsx)" />
-                        <input
-                            id="questions_file"
-                            name="questions_file"
-                            type="file"
-                            accept=".xlsx"
-                            required
-                            class="mt-1 block w-full rounded-md border border-gray-300 text-sm shadow-sm file:me-4 file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200"
-                        >
+                    @if (! empty($sheets))
+                        <input type="hidden" name="import_path" value="{{ $importPath }}">
 
-                        @if ($errors->has('questions_file'))
-                            <div class="mt-3 whitespace-pre-line rounded-md bg-red-50 p-3 text-sm text-red-700">{{ $errors->first('questions_file') }}</div>
-                        @endif
-                    </div>
+                        <div class="rounded-md bg-blue-50 p-4 text-sm text-blue-700">
+                            The uploaded workbook{{ $importFileName ? ' ('.$importFileName.')' : '' }} has multiple sheets. Choose the sheet you want to import.
+                        </div>
+
+                        <div>
+                            <x-input-label for="sheet_index" value="Worksheet" />
+                            <select id="sheet_index" name="sheet_index" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Choose worksheet</option>
+                                @foreach ($sheets as $sheet)
+                                    <option value="{{ $sheet['index'] }}" @selected((string) old('sheet_index') === (string) $sheet['index'])>
+                                        {{ $sheet['name'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-2" :messages="$errors->get('sheet_index')" />
+                            @if ($sheetError)
+                                <div class="mt-2 text-sm text-red-600">{{ $sheetError }}</div>
+                            @endif
+                        </div>
+                    @else
+                        <div>
+                            <x-input-label for="questions_file" value="Excel File (.xlsx)" />
+                            <input
+                                id="questions_file"
+                                name="questions_file"
+                                type="file"
+                                accept=".xlsx"
+                                required
+                                class="mt-1 block w-full rounded-md border border-gray-300 text-sm shadow-sm file:me-4 file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200"
+                            >
+
+                            @if ($errors->has('questions_file'))
+                                <div class="mt-3 whitespace-pre-line rounded-md bg-red-50 p-3 text-sm text-red-700">{{ $errors->first('questions_file') }}</div>
+                            @endif
+                        </div>
+                    @endif
 
                     <div class="flex items-center gap-3">
-                        <x-primary-button>Import Questions</x-primary-button>
+                        <x-primary-button>{{ ! empty($sheets) ? 'Import Selected Sheet' : 'Import Questions' }}</x-primary-button>
                         <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                     </div>
                 </form>

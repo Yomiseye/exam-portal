@@ -18,6 +18,12 @@
                 </div>
             @endif
 
+            @if ($errors->any())
+                <div class="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -57,6 +63,7 @@
                                     <td class="px-6 py-4 text-sm text-gray-500">
                                         <div>{{ $exam->is_randomized ? 'Randomized' : 'Fixed order' }}</div>
                                         <div>{{ $exam->show_corrections ? 'Corrections shown' : 'Corrections hidden' }}</div>
+                                        <div>{{ $exam->allow_pause ? 'Pause allowed' : 'Pause disabled' }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $exam->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
@@ -75,6 +82,14 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        <form method="POST" action="{{ route('admin.exams.permanent-destroy', $exam) }}" class="inline ms-4">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this exam? This only works when it has no attempt history.')">
+                                                Delete
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty

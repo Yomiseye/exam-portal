@@ -13,7 +13,7 @@
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <form method="POST" action="{{ route('admin.questions.store') }}" class="p-6 space-y-6">
+                <form method="POST" action="{{ route('admin.questions.store') }}" enctype="multipart/form-data" class="p-6 space-y-6">
                     @csrf
 
                     @include('admin.questions.partials.form', [

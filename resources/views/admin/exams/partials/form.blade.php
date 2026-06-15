@@ -101,7 +101,7 @@
     <x-input-error class="mt-2" :messages="$errors->get('category_ids.*')" />
 </div>
 
-<div class="grid gap-4 md:grid-cols-3">
+<div class="grid gap-4 md:grid-cols-4">
     <label class="flex items-center">
         <input
             name="is_randomized"
@@ -122,6 +122,17 @@
             class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
         >
         <span class="ms-2 text-sm text-gray-600">Show corrections after submission</span>
+    </label>
+
+    <label class="flex items-center">
+        <input
+            name="allow_pause"
+            type="checkbox"
+            value="1"
+            @checked(old('allow_pause', $exam?->allow_pause ?? false))
+            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+        >
+        <span class="ms-2 text-sm text-gray-600">Allow pause and resume</span>
     </label>
 
     <label class="flex items-center">
