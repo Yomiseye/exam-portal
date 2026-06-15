@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('exam_id')->constrained()->cascadeOnDelete();
             $table->foreignId('assigned_by')->constrained('users')->cascadeOnDelete();
-            $table->timestamp('available_from');
-            $table->timestamp('available_until');
+            $table->dateTime('available_from');
+            $table->dateTime('available_until');
             $table->timestamps();
 
             $table->unique(['user_id', 'exam_id']);

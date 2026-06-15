@@ -6,9 +6,10 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['category_id', 'question_text', 'question_type', 'explanation', 'difficulty', 'is_active'])]
+#[Fillable(['category_id', 'question_text', 'image_path', 'question_type', 'explanation', 'explanation_image_path', 'difficulty', 'is_active'])]
 class Question extends Model
 {
     use HasFactory;
@@ -50,6 +51,11 @@ class Question extends Model
         return $this->hasMany(Option::class);
     }
 
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(QuestionTag::class);
+    }
+
     public function attemptAnswers(): HasMany
     {
         return $this->hasMany(AttemptAnswer::class);
@@ -58,5 +64,19 @@ class Question extends Model
     public function typeLabel(): string
     {
         return self::TYPES[$this->question_type] ?? 'Single choice';
+    }
+
+    public function imageUrl(): ?string
+    {
+        return $this->image_path
+            ? route('question-images.show', ['filename' => basename($this->image_path)])
+            : null;
+    }
+
+    public function explanationImageUrl(): ?string
+    {
+        return $this->explanation_image_path
+            ? route('question-images.show', ['filename' => basename($this->explanation_image_path)])
+            : null;
     }
 }

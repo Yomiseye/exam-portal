@@ -19,6 +19,17 @@ class ResultController extends Controller
     {
         $attempts = Attempt::query()
             ->with(['exam', 'user.retakePermissions'])
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->trim()->toString().'%';
+
+                $query->where(function ($query) use ($search): void {
+                    $query->whereHas('user', fn ($query) => $query
+                        ->where('name', 'like', $search)
+                        ->orWhere('email', 'like', $search))
+                        ->orWhereHas('exam', fn ($query) => $query->where('title', 'like', $search))
+                        ->orWhere('status', 'like', $search);
+                });
+            })
             ->when($request->filled('exam_id'), fn ($query) => $query->where('exam_id', $request->integer('exam_id')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->latest()
@@ -76,5 +87,34 @@ class ResultController extends Controller
         ]);
 
         return back()->with('status', 'Retake permission granted successfully.');
+    }
+
+    /**
+     * Remove selected attempt records from history.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'attempt_ids' => ['required', 'array', 'min:1'],
+            'attempt_ids.*' => ['integer', 'exists:attempts,id'],
+        ]);
+
+        $deleted = Attempt::query()
+            ->whereIn('id', $validated['attempt_ids'])
+            ->delete();
+
+        return back()->with('status', "{$deleted} attempt(s) cleared from history.");
+    }
+
+    /**
+     * Remove a specific exam attempt and its stored answers.
+     */
+    public function destroy(Attempt $attempt): RedirectResponse
+    {
+        $attempt->delete();
+
+        return redirect()
+            ->route('admin.results.index')
+            ->with('status', 'Attempt deleted successfully.');
     }
 }

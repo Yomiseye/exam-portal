@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Attempt;
 use App\Models\Category;
 use App\Models\Exam;
+use App\Models\ExamRetakePermission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -75,6 +77,51 @@ class StudentManagementTest extends TestCase
                 'available_until' => now()->addHour()->format('Y-m-d H:i:s'),
             ])
             ->assertSessionHasErrors('available_until');
+    }
+
+    public function test_admin_can_clear_student_history_without_deleting_student(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = User::factory()->student()->create();
+        $exam = $this->exam();
+
+        $attempt = Attempt::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'score' => 0,
+            'total_questions' => 1,
+            'percentage' => 0,
+            'status' => 'failed',
+            'started_at' => now()->subMinutes(5),
+            'expires_at' => now()->addMinutes(25),
+            'submitted_at' => now(),
+        ]);
+
+        ExamRetakePermission::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'granted_by' => $admin->id,
+            'used_attempt_id' => $attempt->id,
+            'used_at' => now(),
+            'reason' => 'Reset history.',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.students.clear-history', $student))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $student->id,
+            'email' => $student->email,
+            'role' => 'student',
+        ]);
+        $this->assertDatabaseMissing('attempts', [
+            'id' => $attempt->id,
+        ]);
+        $this->assertDatabaseMissing('exam_retake_permissions', [
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+        ]);
     }
 
     private function exam(): Exam

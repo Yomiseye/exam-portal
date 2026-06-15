@@ -23,8 +23,26 @@
                 </div>
             @endif
 
+            @if ($errors->any())
+                <div class="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
             <div class="mb-6 bg-white p-4 shadow-sm sm:rounded-lg">
-                <form method="GET" action="{{ route('admin.questions.index') }}" class="grid gap-4 md:grid-cols-3">
+                <form method="GET" action="{{ route('admin.questions.index') }}" class="grid gap-4 md:grid-cols-4">
+                    <div>
+                        <x-input-label for="search" value="Search" />
+                        <x-text-input
+                            id="search"
+                            name="search"
+                            type="search"
+                            class="mt-1 block w-full"
+                            :value="request('search')"
+                            placeholder="Question, category, type"
+                        />
+                    </div>
+
                     <div>
                         <x-input-label for="category_id" value="Category" />
                         <select id="category_id" name="category_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -54,11 +72,39 @@
                 </form>
             </div>
 
+            <form id="bulk-question-form" method="POST" action="{{ route('admin.questions.bulk-action') }}" class="mb-6 bg-white p-4 shadow-sm sm:rounded-lg">
+                @csrf
+
+                <div class="grid gap-4 md:grid-cols-[1fr,auto] md:items-end">
+                    <div>
+                        <x-input-label for="bulk_action" value="Bulk Action" />
+                        <select id="bulk_action" name="action" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">Choose action</option>
+                            <option value="deactivate">Deactivate selected</option>
+                            <option value="delete">Permanently delete selected</option>
+                        </select>
+                        <x-input-error class="mt-2" :messages="$errors->get('action')" />
+                        <x-input-error class="mt-2" :messages="$errors->get('question_ids')" />
+                    </div>
+
+                    <button type="submit" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700" onclick="return confirm('Apply this bulk action to the selected questions? Permanent delete will skip questions with exam history.')">
+                        Apply to Selected
+                    </button>
+                </div>
+            </form>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th scope="col" class="px-6 py-3 text-left">
+                                    <input
+                                        type="checkbox"
+                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                        onclick="document.querySelectorAll('[data-question-select]').forEach((checkbox) => checkbox.checked = this.checked)"
+                                    >
+                                </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -71,8 +117,31 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse ($questions as $question)
                                 <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            name="question_ids[]"
+                                            value="{{ $question->id }}"
+                                            form="bulk-question-form"
+                                            data-question-select
+                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                        >
+                                    </td>
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-md">
                                         {{ \Illuminate\Support\Str::limit($question->question_text, 100) }}
+                                        @if ($question->image_path)
+                                            <div class="mt-1 text-xs font-normal text-gray-500">Has image</div>
+                                        @endif
+                                        @if ($question->explanation_image_path)
+                                            <div class="mt-1 text-xs font-normal text-gray-500">Has explanation image</div>
+                                        @endif
+                                        @if ($question->tags->isNotEmpty())
+                                            <div class="mt-2 flex flex-wrap gap-1">
+                                                @foreach ($question->tags as $tag)
+                                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600">{{ $tag->name }}</span>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $question->category->fullName() }}
@@ -103,11 +172,19 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        <form method="POST" action="{{ route('admin.questions.permanent-destroy', $question) }}" class="inline ms-4">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this question? This only works when it has not been used in an exam attempt.')">
+                                                Delete
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-6 py-10 text-center text-sm text-gray-500">
+                                    <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
                                         No questions have been created yet.
                                     </td>
                                 </tr>

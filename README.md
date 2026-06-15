@@ -74,6 +74,8 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+For cPanel/shared hosting, use the dedicated checklist in [docs/CPANEL_DEPLOYMENT.md](docs/CPANEL_DEPLOYMENT.md).
+
 If this is the first deployment, seed the first admin after setting `ADMIN_*` values:
 
 ```bash

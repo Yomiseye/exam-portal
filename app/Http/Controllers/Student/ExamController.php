@@ -8,6 +8,7 @@ use App\Models\AttemptAnswer;
 use App\Models\Exam;
 use App\Models\ExamAssignment;
 use App\Models\ExamRetakePermission;
+use App\Models\GroupExamAssignment;
 use App\Models\Option;
 use App\Models\Question;
 use Illuminate\Http\JsonResponse;
@@ -137,12 +138,47 @@ class ExamController extends Controller
             return redirect()->route('student.attempts.result', $attempt);
         }
 
+        if ($attempt->isPaused()) {
+            $attempt->resume();
+            $attempt->refresh();
+        }
+
         $attempt->load([
             'exam',
             'answers.question.options' => fn ($query) => $query->inRandomOrder(),
         ]);
 
         return view('student.exams.attempt', compact('attempt'));
+    }
+
+    /**
+     * Pause an active attempt when the exam permits it.
+     */
+    public function pause(Attempt $attempt): RedirectResponse
+    {
+        $this->authorizeAttempt($attempt);
+
+        abort_unless($attempt->status === 'in_progress', 403);
+
+        $attempt->load('exam');
+
+        if (! $attempt->exam->allow_pause) {
+            return back()->withErrors([
+                'exam' => 'This exam cannot be paused.',
+            ]);
+        }
+
+        if ($attempt->isExpired()) {
+            $this->finalizeAttempt($attempt);
+
+            return redirect()->route('student.attempts.result', $attempt);
+        }
+
+        $attempt->pause();
+
+        return redirect()
+            ->route('student.dashboard')
+            ->with('status', 'Exam paused. You can resume it from your dashboard.');
     }
 
     /**
@@ -153,6 +189,13 @@ class ExamController extends Controller
         $this->authorizeAttempt($attempt);
 
         abort_unless($attempt->status === 'in_progress', 403);
+
+        if ($attempt->isPaused()) {
+            return response()->json([
+                'message' => 'This attempt is paused.',
+                'redirect' => route('student.dashboard'),
+            ], 409);
+        }
 
         if ($attempt->isExpired()) {
             $this->finalizeAttempt($attempt);
@@ -188,6 +231,36 @@ class ExamController extends Controller
     }
 
     /**
+     * Persist the question the student is currently viewing.
+     */
+    public function saveProgress(Request $request, Attempt $attempt): JsonResponse
+    {
+        $this->authorizeAttempt($attempt);
+
+        abort_unless($attempt->status === 'in_progress', 403);
+
+        if ($attempt->isPaused()) {
+            return response()->json([
+                'message' => 'This attempt is paused.',
+                'redirect' => route('student.dashboard'),
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'current_question_index' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $answerCount = $attempt->answers()->count();
+        $lastIndex = max(0, $answerCount - 1);
+
+        $attempt->update([
+            'current_question_index' => min($validated['current_question_index'], $lastIndex),
+        ]);
+
+        return response()->json(['saved' => true]);
+    }
+
+    /**
      * Submit answers and calculate the score on the backend.
      */
     public function submit(Request $request, Attempt $attempt): RedirectResponse
@@ -195,6 +268,11 @@ class ExamController extends Controller
         $this->authorizeAttempt($attempt);
 
         abort_unless($attempt->status === 'in_progress', 403);
+
+        if ($attempt->isPaused()) {
+            $attempt->resume();
+            $attempt->refresh();
+        }
 
         $attempt->load('answers.question.options', 'exam');
 
@@ -529,11 +607,27 @@ class ExamController extends Controller
             ->first();
     }
 
-    private function assignment(Request $request, Exam $exam): ?ExamAssignment
+    private function assignment(Request $request, Exam $exam): ExamAssignment|GroupExamAssignment|null
     {
-        return $request->user()
+        $directAssignment = $request->user()
             ->examAssignments()
             ->where('exam_id', $exam->id)
             ->first();
+
+        $group = $request->user()->studentGroup;
+        $groupAssignment = null;
+
+        if ($group?->is_active) {
+            $groupAssignment = $group
+                ->examAssignments()
+                ->where('exam_id', $exam->id)
+                ->first();
+        }
+
+        return match (true) {
+            $directAssignment?->isAvailable() => $directAssignment,
+            $groupAssignment?->isAvailable() => $groupAssignment,
+            default => $directAssignment ?? $groupAssignment,
+        };
     }
 }

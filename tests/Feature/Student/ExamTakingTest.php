@@ -61,6 +61,7 @@ class ExamTakingTest extends TestCase
     {
         $student = User::factory()->student()->create();
         $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2);
+        Question::query()->firstOrFail()->update(['image_path' => 'question-images/diagram.png']);
         $this->assignExam($student, $exam);
 
         $this->actingAs($student)
@@ -72,6 +73,7 @@ class ExamTakingTest extends TestCase
             ->get(route('student.attempts.show', $attempt))
             ->assertOk()
             ->assertSee('Question 1 of 2')
+            ->assertSee('/question-images/diagram.png')
             ->assertSee('Previous')
             ->assertSee('Next')
             ->assertSee('Submit Exam');
@@ -237,6 +239,35 @@ class ExamTakingTest extends TestCase
             ->assertJson(['saved' => true]);
 
         $this->assertSame($option->id, $answer->fresh()->selected_option_id);
+    }
+
+    public function test_student_current_question_position_is_saved(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions(questionCount: 3, totalQuestions: 3);
+        $this->assignExam($student, $exam);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam));
+
+        $attempt = Attempt::firstOrFail();
+
+        $this->actingAs($student)
+            ->patchJson(route('student.attempts.progress.save', $attempt), [
+                'current_question_index' => 2,
+            ])
+            ->assertOk()
+            ->assertJson(['saved' => true]);
+
+        $this->assertSame(2, $attempt->fresh()->current_question_index);
+
+        $this->actingAs($student)
+            ->patchJson(route('student.attempts.progress.save', $attempt), [
+                'current_question_index' => 20,
+            ])
+            ->assertOk();
+
+        $this->assertSame(2, $attempt->fresh()->current_question_index);
     }
 
     public function test_student_can_submit_exam_using_previously_saved_answers(): void

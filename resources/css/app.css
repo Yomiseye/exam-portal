@@ -2,6 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --portal-ink: #111827;
+    --portal-muted: #64748b;
+    --portal-border: #dbe3ee;
+    --portal-soft: #f6f8fb;
+    --portal-panel: #ffffff;
+    --portal-primary: #0f766e;
+    --portal-primary-dark: #115e59;
+    --portal-accent: #b45309;
+    --portal-danger: #b91c1c;
+    --portal-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
 [x-cloak] {
     display: none !important;
+}
+
+.portal-button-primary,
+.portal-button-secondary,
+.portal-button-danger,
+.portal-button-muted {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    border-radius: 8px;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 650;
+    line-height: 1;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.portal-button-primary {
+    border: 1px solid transparent;
+    background: var(--portal-primary);
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(15, 118, 110, 0.18);
+}
+
+.portal-button-primary:hover {
+    background: var(--portal-primary-dark);
+}
+
+.portal-button-secondary {
+    border: 1px solid var(--portal-border);
+    background: #ffffff;
+    color: #334155;
+}
+
+.portal-button-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.portal-button-danger {
+    border: 1px solid transparent;
+    background: var(--portal-danger);
+    color: #ffffff;
+}
+
+.portal-button-danger:hover {
+    background: #991b1b;
+}
+
+.portal-button-muted {
+    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #64748b;
 }

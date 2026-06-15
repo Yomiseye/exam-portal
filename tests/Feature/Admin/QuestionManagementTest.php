@@ -5,8 +5,10 @@ namespace Tests\Feature\Admin;
 use App\Models\Category;
 use App\Models\Question;
 use App\Models\User;
+use App\Services\QuestionImportSpreadsheet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -119,6 +121,108 @@ class QuestionManagementTest extends TestCase
 
         $this->assertSame(4, $question->options()->count());
         $this->assertSame(1, $question->options()->where('is_correct', true)->count());
+    }
+
+    public function test_admin_can_create_question_with_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Diagrams');
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'What does the diagram show?',
+                'image' => UploadedFile::fake()->image('diagram.png')->size(512),
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'A cell'],
+                    ['text' => 'A planet'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'What does the diagram show?')->firstOrFail();
+
+        $this->assertNotNull($question->image_path);
+        Storage::disk('public')->assertExists($question->image_path);
+    }
+
+    public function test_admin_can_create_question_with_explanation_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Explanations');
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'What does the explanation diagram show?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'explanation' => 'Use the diagram to review the answer.',
+                'explanation_image' => UploadedFile::fake()->image('explanation.png')->size(512),
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'A cell'],
+                    ['text' => 'A planet'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'What does the explanation diagram show?')->firstOrFail();
+
+        $this->assertNotNull($question->explanation_image_path);
+        Storage::disk('public')->assertExists($question->explanation_image_path);
+    }
+
+    public function test_admin_can_remove_question_explanation_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Biology', 'Explanations');
+        Storage::disk('public')->put('question-images/explanation-remove.png', 'image');
+
+        $question = Question::create([
+            'category_id' => $subcategory->id,
+            'question_text' => 'Remove explanation image question?',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'explanation' => 'Explanation with image.',
+            'explanation_image_path' => 'question-images/explanation-remove.png',
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $question->options()->createMany([
+            ['option_text' => 'A', 'is_correct' => true],
+            ['option_text' => 'B', 'is_correct' => false],
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.questions.update', $question), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'Remove explanation image question?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'explanation' => 'Explanation with image.',
+                'remove_explanation_image' => '1',
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'A'],
+                    ['text' => 'B'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $this->assertNull($question->fresh()->explanation_image_path);
+        Storage::disk('public')->assertMissing('question-images/explanation-remove.png');
     }
 
     public function test_admin_can_create_question_under_subcategory(): void
@@ -252,6 +356,91 @@ class QuestionManagementTest extends TestCase
         $this->assertFalse($question->is_active);
         $this->assertSame(3, $question->options()->count());
         $this->assertTrue($question->options()->where('option_text', 'Lagos')->firstOrFail()->is_correct);
+    }
+
+    public function test_admin_can_replace_question_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Biology', 'Cells');
+        Storage::disk('public')->put('question-images/old.png', 'old-image');
+
+        $question = Question::create([
+            'category_id' => $subcategory->id,
+            'question_text' => 'Old image question?',
+            'image_path' => 'question-images/old.png',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $question->options()->createMany([
+            ['option_text' => 'A', 'is_correct' => true],
+            ['option_text' => 'B', 'is_correct' => false],
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.questions.update', $question), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'Updated image question?',
+                'image' => UploadedFile::fake()->image('new-image.jpg')->size(256),
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'medium',
+                'correct_option' => '1',
+                'options' => [
+                    ['text' => 'A'],
+                    ['text' => 'B'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question->refresh();
+
+        $this->assertNotSame('question-images/old.png', $question->image_path);
+        Storage::disk('public')->assertMissing('question-images/old.png');
+        Storage::disk('public')->assertExists($question->image_path);
+    }
+
+    public function test_admin_can_remove_question_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Biology', 'Cells');
+        Storage::disk('public')->put('question-images/remove.png', 'image');
+
+        $question = Question::create([
+            'category_id' => $subcategory->id,
+            'question_text' => 'Remove image question?',
+            'image_path' => 'question-images/remove.png',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $question->options()->createMany([
+            ['option_text' => 'A', 'is_correct' => true],
+            ['option_text' => 'B', 'is_correct' => false],
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.questions.update', $question), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'Remove image question?',
+                'remove_image' => '1',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'A'],
+                    ['text' => 'B'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $this->assertNull($question->fresh()->image_path);
+        Storage::disk('public')->assertMissing('question-images/remove.png');
     }
 
     public function test_admin_can_deactivate_question(): void
@@ -480,6 +669,28 @@ class QuestionManagementTest extends TestCase
         ]);
     }
 
+    public function test_spreadsheet_reader_uses_selected_sheet_index(): void
+    {
+        $file = $this->multiSheetExcelUpload(
+            [
+                ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'correct_answers'],
+                ['First Category', 'First Topic', 'single_choice', 'Question from first sheet?', 'easy', 'Yes', 'No', '1'],
+            ],
+            [
+                ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'correct_answers'],
+                ['Second Category', 'Second Topic', 'single_choice', 'Question from second sheet?', 'easy', 'Yes', 'No', '1'],
+            ],
+        );
+
+        $spreadsheet = app(QuestionImportSpreadsheet::class);
+
+        $firstSheetRows = $spreadsheet->rows($file->getRealPath(), 0);
+        $secondSheetRows = $spreadsheet->rows($file->getRealPath(), 1);
+
+        $this->assertSame('Question from first sheet?', $firstSheetRows[0]['question']);
+        $this->assertSame('Question from second sheet?', $secondSheetRows[0]['question']);
+    }
+
     /**
      * @return array{0: Category, 1: Category}
      */
@@ -509,6 +720,31 @@ class QuestionManagementTest extends TestCase
         $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
         $zip->addFromString('xl/worksheets/sheet1.xml', $this->worksheetXml($rows));
+        $zip->close();
+
+        return new UploadedFile(
+            $path,
+            'questions.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+    }
+
+    /**
+     * @param  array<int, array<int, string>>  $firstSheetRows
+     * @param  array<int, array<int, string>>  $secondSheetRows
+     */
+    private function multiSheetExcelUpload(array $firstSheetRows, array $secondSheetRows): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'questions-import-');
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+        $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="First" sheetId="1" r:id="rId1"/><sheet name="Second" sheetId="2" r:id="rId2"/></sheets></workbook>');
+        $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>');
+        $zip->addFromString('xl/worksheets/sheet1.xml', $this->worksheetXml($firstSheetRows));
+        $zip->addFromString('xl/worksheets/sheet2.xml', $this->worksheetXml($secondSheetRows));
         $zip->close();
 
         return new UploadedFile(

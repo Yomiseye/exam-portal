@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'started_at',
     'expires_at',
+    'paused_at',
+    'current_question_index',
     'submitted_at',
 ])]
 class Attempt extends Model
@@ -36,13 +38,41 @@ class Attempt extends Model
             'percentage' => 'integer',
             'started_at' => 'datetime',
             'expires_at' => 'datetime',
+            'paused_at' => 'datetime',
+            'current_question_index' => 'integer',
             'submitted_at' => 'datetime',
         ];
     }
 
     public function isExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        return $this->paused_at === null && $this->expires_at !== null && $this->expires_at->isPast();
+    }
+
+    public function isPaused(): bool
+    {
+        return $this->paused_at !== null;
+    }
+
+    public function pause(): void
+    {
+        if (! $this->isPaused()) {
+            $this->update(['paused_at' => now()]);
+        }
+    }
+
+    public function resume(): void
+    {
+        if (! $this->paused_at) {
+            return;
+        }
+
+        $pausedSeconds = $this->paused_at->diffInSeconds(now());
+
+        $this->update([
+            'expires_at' => $this->expires_at?->copy()->addSeconds($pausedSeconds),
+            'paused_at' => null,
+        ]);
     }
 
     public function user(): BelongsTo

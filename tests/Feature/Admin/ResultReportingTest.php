@@ -93,6 +93,48 @@ class ResultReportingTest extends TestCase
         $this->assertSame(1, ExamRetakePermission::count());
     }
 
+    public function test_admin_can_delete_attempt(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $attempt = $this->submittedAttempt();
+        $answerId = $attempt->answers()->firstOrFail()->id;
+
+        $this->actingAs($admin)
+            ->delete(route('admin.results.destroy', $attempt))
+            ->assertRedirect(route('admin.results.index'));
+
+        $this->assertDatabaseMissing('attempts', [
+            'id' => $attempt->id,
+        ]);
+        $this->assertDatabaseMissing('attempt_answers', [
+            'id' => $answerId,
+        ]);
+    }
+
+    public function test_admin_can_bulk_clear_selected_attempt_history(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $clearedAttempt = $this->submittedAttempt(title: 'Clear This Exam');
+        $keptAttempt = $this->submittedAttempt(title: 'Keep This Exam');
+
+        $this->actingAs($admin)
+            ->delete(route('admin.results.bulk-destroy'), [
+                'attempt_ids' => [$clearedAttempt->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('attempts', [
+            'id' => $clearedAttempt->id,
+        ]);
+        $this->assertDatabaseHas('attempts', [
+            'id' => $keptAttempt->id,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'id' => $clearedAttempt->user_id,
+            'role' => 'student',
+        ]);
+    }
+
     public function test_admin_cannot_grant_retake_for_in_progress_attempt(): void
     {
         $admin = User::factory()->admin()->create();

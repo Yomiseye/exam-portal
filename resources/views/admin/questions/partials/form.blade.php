@@ -53,6 +53,8 @@
             ->keys()
             ->all();
     }
+
+    $tagValue = old('tags', $question?->tags?->pluck('name')->implode(', '));
 @endphp
 
 <div
@@ -194,6 +196,57 @@
 </div>
 
 <div>
+    <x-input-label for="image" value="Question Image" />
+
+    @if ($question?->image_path)
+        <div class="mt-2 rounded-md border border-gray-200 p-3">
+            <img
+                src="{{ $question->imageUrl() }}"
+                alt="Current question image"
+                class="max-h-64 rounded-md object-contain"
+            >
+
+            <label class="mt-3 flex items-center text-sm text-gray-600">
+                <input
+                    id="remove_image"
+                    name="remove_image"
+                    type="checkbox"
+                    value="1"
+                    @checked(old('remove_image'))
+                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                >
+                <span class="ms-2">Remove current image</span>
+            </label>
+        </div>
+    @endif
+
+    <input
+        id="image"
+        name="image"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        class="mt-2 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-700"
+    >
+    <p class="mt-1 text-sm text-gray-500">Optional JPG, PNG, or WebP image. Maximum size: 2MB.</p>
+    <x-input-error class="mt-2" :messages="$errors->get('image')" />
+    <x-input-error class="mt-2" :messages="$errors->get('remove_image')" />
+</div>
+
+<div>
+    <x-input-label for="tags" value="Tags" />
+    <x-text-input
+        id="tags"
+        name="tags"
+        type="text"
+        class="mt-1 block w-full"
+        :value="$tagValue"
+        placeholder="agile, risk, calculations"
+    />
+    <p class="mt-1 text-sm text-gray-500">Optional. Separate tags with commas.</p>
+    <x-input-error class="mt-2" :messages="$errors->get('tags')" />
+</div>
+
+<div>
     <x-input-label for="explanation" value="Explanation" />
     <textarea
         id="explanation"
@@ -202,6 +255,43 @@
         class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
     >{{ old('explanation', $question?->explanation) }}</textarea>
     <x-input-error class="mt-2" :messages="$errors->get('explanation')" />
+</div>
+
+<div>
+    <x-input-label for="explanation_image" value="Explanation Image" />
+
+    @if ($question?->explanation_image_path)
+        <div class="mt-2 rounded-md border border-gray-200 p-3">
+            <img
+                src="{{ $question->explanationImageUrl() }}"
+                alt="Current explanation image"
+                class="max-h-64 rounded-md object-contain"
+            >
+
+            <label class="mt-3 flex items-center text-sm text-gray-600">
+                <input
+                    id="remove_explanation_image"
+                    name="remove_explanation_image"
+                    type="checkbox"
+                    value="1"
+                    @checked(old('remove_explanation_image'))
+                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                >
+                <span class="ms-2">Remove current explanation image</span>
+            </label>
+        </div>
+    @endif
+
+    <input
+        id="explanation_image"
+        name="explanation_image"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        class="mt-2 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-700"
+    >
+    <p class="mt-1 text-sm text-gray-500">Optional JPG, PNG, or WebP image shown with the explanation. Maximum size: 2MB.</p>
+    <x-input-error class="mt-2" :messages="$errors->get('explanation_image')" />
+    <x-input-error class="mt-2" :messages="$errors->get('remove_explanation_image')" />
 </div>
 
 <div>

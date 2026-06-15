@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -14,13 +15,25 @@ class CategoryController extends Controller
     /**
      * Display a listing of categories.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $categories = Category::query()
             ->with('parent')
+            ->withCount(['subcategories', 'questions', 'exams'])
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->trim()->toString().'%';
+
+                $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', $search)
+                        ->orWhere('description', 'like', $search)
+                        ->orWhereHas('parent', fn ($query) => $query->where('name', 'like', $search));
+                });
+            })
+            ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'active'))
             ->orderByRaw('parent_id is not null')
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return view('admin.categories.index', compact('categories'));
     }
@@ -80,6 +93,26 @@ class CategoryController extends Controller
         return redirect()
             ->route('admin.categories.index')
             ->with('status', 'Category deactivated successfully.');
+    }
+
+    /**
+     * Permanently delete a category only when nothing depends on it.
+     */
+    public function permanentDestroy(Category $category): RedirectResponse
+    {
+        $category->loadCount(['subcategories', 'questions', 'exams']);
+
+        if ($category->subcategories_count > 0 || $category->questions_count > 0 || $category->exams_count > 0) {
+            return back()->withErrors([
+                'category' => 'This category cannot be permanently deleted because it has subcategories, questions, or exams attached. Deactivate it instead.',
+            ]);
+        }
+
+        DB::transaction(fn () => $category->delete());
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('status', 'Category permanently deleted successfully.');
     }
 
     /**

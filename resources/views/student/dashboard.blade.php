@@ -1,53 +1,84 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Student Dashboard
-        </h2>
+        <div class="flex flex-col gap-1">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                Student Dashboard
+            </h2>
+            <p class="text-sm text-white/80">Track assigned exams, resume attempts, and review recent results.</p>
+        </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="portal-page">
+        <div class="portal-container">
+            @if (session('status'))
+                <div class="portal-alert portal-alert-success mb-6">
+                    {{ session('status') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="portal-alert portal-alert-danger mb-6">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
+            @php
+                $availableCount = $exams->whereIn('student_status', ['available', 'retake_granted'])->count();
+                $activeCount = $exams->whereIn('student_status', ['in_progress', 'paused'])->count();
+                $completedCount = $exams->where('student_status', 'completed')->count();
+                $scheduledCount = $exams->where('student_status', 'scheduled')->count();
+            @endphp
+
+            <div class="mb-6 grid gap-4 md:grid-cols-4">
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">Available Now</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $availableCount }}</div>
+                </div>
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">In Progress</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $activeCount }}</div>
+                </div>
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">Scheduled</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $scheduledCount }}</div>
+                </div>
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">Completed</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $completedCount }}</div>
+                </div>
+            </div>
+
             <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="portal-panel overflow-hidden">
                     <div class="p-6">
-                        <h3 class="text-lg font-medium text-gray-900">Available Exams</h3>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-950">Assigned Exams</h3>
+                            <p class="mt-1 text-sm text-gray-500">Start what is available, or resume work already in progress.</p>
+                        </div>
 
                         <div class="mt-6 space-y-4">
                             @forelse ($exams as $exam)
-                                <div class="rounded-md border border-gray-200 p-4">
+                                <div class="rounded-md border border-gray-200 bg-white p-4 transition hover:border-teal-200 hover:bg-slate-50">
                                     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">{{ $exam->title }}</h4>
-
-                                            @if ($exam->description)
-                                                <p class="mt-1 text-sm text-gray-600">{{ $exam->description }}</p>
-                                            @endif
-
-                                            <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
-                                                <span class="rounded-full bg-gray-100 px-2.5 py-1">{{ $exam->duration_minutes }} min</span>
-                                                <span class="rounded-full bg-gray-100 px-2.5 py-1">{{ $exam->total_questions }} questions</span>
-                                                <span class="rounded-full bg-gray-100 px-2.5 py-1">{{ $exam->pass_mark }}% pass mark</span>
-                                            </div>
-
-                                            <div class="mt-3 text-sm text-gray-500">
-                                                {{ $exam->categories->map(fn ($category) => $category->fullName())->join(', ') }}
-                                            </div>
-
-                                            <div class="mt-3">
-                                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <h4 class="font-semibold text-gray-950">{{ $exam->title }}</h4>
+                                                <span class="portal-badge {{
                                                     match ($exam->student_status) {
-                                                        'available' => 'bg-green-100 text-green-800',
-                                                        'retake_granted' => 'bg-blue-100 text-blue-800',
-                                                        'in_progress' => 'bg-yellow-100 text-yellow-800',
-                                                        'scheduled' => 'bg-blue-100 text-blue-800',
-                                                        'closed' => 'bg-red-100 text-red-800',
-                                                        default => 'bg-gray-100 text-gray-700',
+                                                        'available' => 'portal-badge-success',
+                                                        'retake_granted' => 'portal-badge-info',
+                                                        'paused' => 'portal-badge-warning',
+                                                        'in_progress' => 'portal-badge-warning',
+                                                        'scheduled' => 'portal-badge-info',
+                                                        'closed' => 'portal-badge-danger',
+                                                        default => 'portal-badge-neutral',
                                                     }
                                                 }}">
                                                     {{
                                                         match ($exam->student_status) {
                                                             'available' => 'Available',
                                                             'retake_granted' => 'Retake granted',
+                                                            'paused' => 'Paused',
                                                             'in_progress' => 'In progress',
                                                             'scheduled' => 'Scheduled',
                                                             'closed' => 'Closed',
@@ -55,6 +86,20 @@
                                                         }
                                                     }}
                                                 </span>
+                                            </div>
+
+                                            @if ($exam->description)
+                                                <p class="mt-1 text-sm text-gray-600">{{ $exam->description }}</p>
+                                            @endif
+
+                                            <div class="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-3">
+                                                <span class="rounded-md bg-gray-100 px-2.5 py-2">{{ $exam->duration_minutes }} min</span>
+                                                <span class="rounded-md bg-gray-100 px-2.5 py-2">{{ $exam->total_questions }} questions</span>
+                                                <span class="rounded-md bg-gray-100 px-2.5 py-2">{{ $exam->pass_mark }}% pass mark</span>
+                                            </div>
+
+                                            <div class="mt-3 text-sm text-gray-500">
+                                                {{ $exam->categories->map(fn ($category) => $category->fullName())->join(', ') }}
                                             </div>
 
                                             @if ($exam->assignment)
@@ -66,45 +111,48 @@
                                             @endif
                                         </div>
 
-                                        @if ($exam->student_status === 'in_progress')
-                                            <a href="{{ route('student.attempts.show', $exam->latest_attempt) }}" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
-                                                Continue
+                                        @if (in_array($exam->student_status, ['in_progress', 'paused'], true))
+                                            <a href="{{ route('student.attempts.show', $exam->latest_attempt) }}" class="portal-button-primary shrink-0">
+                                                {{ $exam->student_status === 'paused' ? 'Resume' : 'Continue' }}
                                             </a>
                                         @elseif ($exam->student_status === 'completed')
-                                            <a href="{{ route('student.attempts.result', $exam->latest_attempt) }}" class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
+                                            <a href="{{ route('student.attempts.result', $exam->latest_attempt) }}" class="portal-button-secondary shrink-0">
                                                 View Result
                                             </a>
                                         @elseif (in_array($exam->student_status, ['scheduled', 'closed'], true))
-                                            <span class="inline-flex items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
+                                            <span class="portal-button-muted shrink-0">
                                                 Not Available
                                             </span>
                                         @else
-                                            <a href="{{ route('student.exams.show', $exam) }}" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                            <a href="{{ route('student.exams.show', $exam) }}" class="portal-button-primary shrink-0">
                                                 {{ $exam->student_status === 'retake_granted' ? 'Retake Exam' : 'View Exam' }}
                                             </a>
                                         @endif
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-sm text-gray-500">No active exams are available.</p>
+                                <div class="rounded-md border border-dashed border-gray-300 p-8 text-center">
+                                    <p class="text-sm text-gray-500">No active exams are available.</p>
+                                </div>
                             @endforelse
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="portal-panel overflow-hidden">
                     <div class="p-6">
-                        <h3 class="text-lg font-medium text-gray-900">Recent Results</h3>
+                        <h3 class="text-lg font-semibold text-gray-950">Recent Activity</h3>
+                        <p class="mt-1 text-sm text-gray-500">Latest submitted or ongoing attempts.</p>
 
                         <div class="mt-6 space-y-3">
                             @forelse ($attempts as $attempt)
-                                <a href="{{ $attempt->status === 'in_progress' ? route('student.attempts.show', $attempt) : route('student.attempts.result', $attempt) }}" class="block rounded-md border border-gray-200 p-4 hover:border-gray-300">
+                                <a href="{{ $attempt->status === 'in_progress' ? route('student.attempts.show', $attempt) : route('student.attempts.result', $attempt) }}" class="block rounded-md border border-gray-200 p-4 transition hover:border-teal-200 hover:bg-slate-50">
                                     <div class="font-medium text-gray-900">{{ $attempt->exam->title }}</div>
                                     <div class="mt-1 text-sm text-gray-500">
                                         @if ($attempt->status === 'in_progress')
-                                            In progress
+                                            {{ $attempt->isPaused() ? 'Paused' : 'In progress' }}
                                         @else
-                                            {{ $attempt->score }} / {{ $attempt->total_questions }} · {{ $attempt->percentage }}%
+                                            {{ $attempt->score }} / {{ $attempt->total_questions }} &middot; {{ $attempt->percentage }}%
                                         @endif
                                     </div>
                                 </a>
