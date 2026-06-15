@@ -68,6 +68,18 @@
             border-color: rgba(15, 118, 110, 0.28);
             background: #f8fafc;
         }
+
+        .exam-secure {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .exam-secure input,
+        .exam-secure select,
+        .exam-secure textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
+        }
     </style>
 
     <x-slot name="header">
@@ -96,6 +108,10 @@
                     expiresAt: new Date('{{ $attempt->expires_at->toIso8601String() }}').getTime(),
                     remaining: '',
                     remainingSeconds: 0,
+                    securityWarnings: 0,
+                    lastSecurityWarning: '',
+                    fullscreenSupported: false,
+                    fullscreenActive: false,
                     updateTimer() {
                         const diff = Math.max(0, this.expiresAt - Date.now());
                         this.remainingSeconds = Math.floor(diff / 1000);
@@ -111,6 +127,61 @@
                     init() {
                         this.updateTimer();
                         setInterval(() => this.updateTimer(), 1000);
+                        this.initSecurityControls();
+                    },
+                    initSecurityControls() {
+                        this.fullscreenSupported = Boolean(document.documentElement.requestFullscreen);
+                        this.fullscreenActive = Boolean(document.fullscreenElement);
+
+                        document.addEventListener('visibilitychange', () => {
+                            if (document.hidden && ! this.submitted) {
+                                this.addSecurityWarning('Tab or window switch detected.');
+                            }
+                        });
+
+                        window.addEventListener('blur', () => {
+                            if (! this.submitted) {
+                                this.addSecurityWarning('Exam window lost focus.');
+                            }
+                        });
+
+                        document.addEventListener('fullscreenchange', () => {
+                            this.fullscreenActive = Boolean(document.fullscreenElement);
+
+                            if (! this.fullscreenActive && ! this.submitted) {
+                                this.addSecurityWarning('Fullscreen mode exited.');
+                            }
+                        });
+                    },
+                    addSecurityWarning(message) {
+                        this.securityWarnings++;
+                        this.lastSecurityWarning = message;
+                    },
+                    blockSecurityAction(message) {
+                        this.addSecurityWarning(message);
+                    },
+                    blockExamShortcut(event) {
+                        const key = event.key.toLowerCase();
+                        const blockedWithModifier = ['a', 'c', 'p', 's', 'u', 'v', 'x'].includes(key) && (event.ctrlKey || event.metaKey);
+                        const blockedFunctionKey = ['printscreen'].includes(key);
+
+                        if (blockedWithModifier || blockedFunctionKey) {
+                            event.preventDefault();
+                            this.blockSecurityAction('Restricted shortcut blocked.');
+                        }
+                    },
+                    async requestSecureFullscreen() {
+                        if (! document.documentElement.requestFullscreen) {
+                            this.addSecurityWarning('Fullscreen is not supported by this browser.');
+                            return;
+                        }
+
+                        try {
+                            await document.documentElement.requestFullscreen();
+                            this.fullscreenActive = true;
+                        } catch (error) {
+                            this.addSecurityWarning('Fullscreen request was not completed.');
+                        }
                     },
                     answeredCount() {
                         return Object.values(this.answered).filter(Boolean).length;
@@ -206,7 +277,13 @@
                 method="POST"
                 action="{{ route('student.attempts.submit', $attempt) }}"
                 class="space-y-4"
+                :class="{ 'exam-secure': true }"
                 @submit="submitted = true"
+                @contextmenu.prevent="blockSecurityAction('Right-click blocked during exam.')"
+                @copy.prevent="blockSecurityAction('Copy blocked during exam.')"
+                @cut.prevent="blockSecurityAction('Cut blocked during exam.')"
+                @paste.prevent="blockSecurityAction('Paste blocked during exam.')"
+                @keydown.window="blockExamShortcut($event)"
             >
                 @csrf
 
@@ -258,6 +335,37 @@
                     @if ($attempt->exam->allow_pause)
                         You can pause and resume later from your dashboard.
                     @endif
+                </div>
+
+                <div class="portal-panel p-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Exam Security</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                Copying, pasting, right-clicking, and switching away from this exam are monitored during the attempt.
+                            </p>
+                            <p class="mt-2 text-sm font-medium" :class="securityWarnings > 0 ? 'text-amber-700' : 'text-emerald-700'">
+                                <span x-text="securityWarnings"></span> warning(s)
+                                <span x-show="lastSecurityWarning">- <span x-text="lastSecurityWarning"></span></span>
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="portal-button-secondary"
+                            x-show="fullscreenSupported && ! fullscreenActive"
+                            @click="requestSecureFullscreen"
+                        >
+                            Enter Fullscreen
+                        </button>
+
+                        <span
+                            x-show="fullscreenActive"
+                            class="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-emerald-700"
+                        >
+                            Fullscreen Active
+                        </span>
+                    </div>
                 </div>
 
                 @if ($errors->any())

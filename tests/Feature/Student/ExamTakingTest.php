@@ -76,6 +76,8 @@ class ExamTakingTest extends TestCase
             ->assertSee('/question-images/diagram.png')
             ->assertSee('Previous')
             ->assertSee('Next')
+            ->assertSee('Exam Security')
+            ->assertSee('Enter Fullscreen')
             ->assertSee('Submit Exam');
     }
 
