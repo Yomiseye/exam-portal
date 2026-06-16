@@ -16,6 +16,10 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->user()->isStudent()) {
+            return [];
+        }
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => [

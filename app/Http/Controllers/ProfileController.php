@@ -25,6 +25,10 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        if ($request->user()->isStudent()) {
+            return Redirect::route('profile.edit')->with('status', 'profile-locked');
+        }
+
         $request->user()->fill($request->validated());
 
         if ($request->user()->isDirty('email')) {

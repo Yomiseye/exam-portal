@@ -5,7 +5,11 @@
         </h2>
 
         <p class="mt-1 text-sm text-gray-600">
-            {{ __("Update your account's profile information and email address.") }}
+            @if ($user->isStudent())
+                {{ __('Your name and email address are managed by the exam administrator.') }}
+            @else
+                {{ __("Update your account's profile information and email address.") }}
+            @endif
         </p>
     </header>
 
@@ -15,18 +19,39 @@
 
         <div>
             <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $user->name)" required autofocus autocomplete="name" />
+            <x-text-input
+                id="name"
+                name="name"
+                type="text"
+                class="mt-1 block w-full disabled:bg-gray-100 disabled:text-gray-600"
+                :value="old('name', $user->name)"
+                required
+                autofocus
+                autocomplete="name"
+                :disabled="$user->isStudent()"
+            />
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username" />
+            <x-text-input
+                id="email"
+                name="email"
+                type="email"
+                class="mt-1 block w-full disabled:bg-gray-100 disabled:text-gray-600"
+                :value="old('email', $user->email)"
+                required
+                autocomplete="username"
+                :disabled="$user->isStudent()"
+            />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
         </div>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            @unless ($user->isStudent())
+                <x-primary-button>{{ __('Save') }}</x-primary-button>
+            @endunless
 
             @if (session('status') === 'profile-updated')
                 <p
@@ -36,6 +61,16 @@
                     x-init="setTimeout(() => show = false, 2000)"
                     class="text-sm text-gray-600"
                 >{{ __('Saved.') }}</p>
+            @endif
+
+            @if (session('status') === 'profile-locked')
+                <p
+                    x-data="{ show: true }"
+                    x-show="show"
+                    x-transition
+                    x-init="setTimeout(() => show = false, 3000)"
+                    class="text-sm text-gray-600"
+                >{{ __('Profile details are managed by the administrator.') }}</p>
             @endif
         </div>
     </form>

@@ -23,7 +23,7 @@ class ProfileTest extends TestCase
 
     public function test_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $response = $this
             ->actingAs($user)
@@ -45,7 +45,7 @@ class ProfileTest extends TestCase
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $response = $this
             ->actingAs($user)
@@ -59,6 +59,44 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_student_profile_information_is_read_only(): void
+    {
+        $student = User::factory()->student()->create([
+            'name' => 'Original Student',
+            'email' => 'student@example.com',
+        ]);
+
+        $response = $this
+            ->actingAs($student)
+            ->get('/profile');
+
+        $response
+            ->assertOk()
+            ->assertSee('Your name and email address are managed by the exam administrator.')
+            ->assertSee('disabled', false);
+    }
+
+    public function test_student_cannot_update_profile_information_with_crafted_request(): void
+    {
+        $student = User::factory()->student()->create([
+            'name' => 'Original Student',
+            'email' => 'student@example.com',
+        ]);
+
+        $this
+            ->actingAs($student)
+            ->patch('/profile', [
+                'name' => 'Changed Student',
+                'email' => 'changed@example.com',
+            ])
+            ->assertRedirect('/profile');
+
+        $student->refresh();
+
+        $this->assertSame('Original Student', $student->name);
+        $this->assertSame('student@example.com', $student->email);
     }
 
     public function test_profile_page_does_not_show_account_deletion(): void
