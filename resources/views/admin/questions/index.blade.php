@@ -80,6 +80,7 @@
                         <x-input-label for="bulk_action" value="Bulk Action" />
                         <select id="bulk_action" name="action" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Choose action</option>
+                            <option value="activate">Activate selected</option>
                             <option value="deactivate">Deactivate selected</option>
                             <option value="delete">Permanently delete selected</option>
                         </select>
@@ -156,30 +157,35 @@
                                         {{ $question->options_count }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $question->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                                            {{ $question->is_active ? 'Active' : 'Inactive' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ route('admin.questions.edit', $question) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
-
-                                        @if ($question->is_active)
-                                            <form method="POST" action="{{ route('admin.questions.destroy', $question) }}" class="inline ms-4">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this question?')">
-                                                    Deactivate
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        <form method="POST" action="{{ route('admin.questions.permanent-destroy', $question) }}" class="inline ms-4">
+                                        <form method="POST" action="{{ route('admin.questions.status.update', $question) }}">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this question? This only works when it has not been used in an exam attempt.')">
-                                                Delete
+                                            @method('PATCH')
+                                            <input type="hidden" name="is_active" value="{{ $question->is_active ? '0' : '1' }}">
+                                            <button
+                                                type="submit"
+                                                class="group inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold transition {{ $question->is_active ? 'border-green-200 bg-green-50 text-green-800 hover:bg-green-100' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100' }}"
+                                                title="Toggle question status"
+                                                onclick="return confirm('Mark this question as {{ $question->is_active ? 'inactive' : 'active' }}?')"
+                                            >
+                                                <span class="relative inline-flex h-4 w-7 items-center rounded-full {{ $question->is_active ? 'bg-green-600' : 'bg-gray-300' }}">
+                                                    <span class="inline-block h-3 w-3 transform rounded-full bg-white transition {{ $question->is_active ? 'translate-x-3.5' : 'translate-x-0.5' }}"></span>
+                                                </span>
+                                                {{ $question->is_active ? 'Active' : 'Inactive' }}
                                             </button>
                                         </form>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div class="flex justify-end gap-3">
+                                            <a href="{{ route('admin.questions.edit', $question) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+
+                                            <form method="POST" action="{{ route('admin.questions.permanent-destroy', $question) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this question? This only works when it has not been used in an exam attempt.')">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty

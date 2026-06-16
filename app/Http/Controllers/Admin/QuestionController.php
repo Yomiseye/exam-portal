@@ -181,7 +181,7 @@ class QuestionController extends Controller
     public function bulkAction(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['deactivate', 'delete'])],
+            'action' => ['required', Rule::in(['activate', 'deactivate', 'delete'])],
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer', 'exists:questions,id'],
         ]);
@@ -196,6 +196,14 @@ class QuestionController extends Controller
                 ->update(['is_active' => false]);
 
             return back()->with('status', $questions->count().' question(s) deactivated successfully.');
+        }
+
+        if ($validated['action'] === 'activate') {
+            Question::query()
+                ->whereIn('id', $questions->pluck('id'))
+                ->update(['is_active' => true]);
+
+            return back()->with('status', $questions->count().' question(s) activated successfully.');
         }
 
         $deleted = 0;
@@ -274,6 +282,22 @@ class QuestionController extends Controller
         return redirect()
             ->route('admin.questions.index')
             ->with('status', 'Question deactivated successfully.');
+    }
+
+    /**
+     * Update whether the question is available for exams.
+     */
+    public function updateStatus(Request $request, Question $question): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $question->update([
+            'is_active' => (bool) $validated['is_active'],
+        ]);
+
+        return back()->with('status', 'Question marked as '.($question->is_active ? 'active' : 'inactive').'.');
     }
 
     /**

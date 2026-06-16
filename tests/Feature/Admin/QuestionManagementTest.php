@@ -461,6 +461,55 @@ class QuestionManagementTest extends TestCase
         $this->assertFalse($question->fresh()->is_active);
     }
 
+    public function test_admin_can_toggle_question_status_from_index(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create(['name' => 'Biology']);
+        $question = Question::create([
+            'category_id' => $category->id,
+            'question_text' => 'What is osmosis?',
+            'difficulty' => 'easy',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.questions.status.update', $question), [
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($question->fresh()->is_active);
+    }
+
+    public function test_admin_can_bulk_activate_questions(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create(['name' => 'Biology']);
+        $questions = collect([
+            Question::create([
+                'category_id' => $category->id,
+                'question_text' => 'Inactive question one?',
+                'difficulty' => 'easy',
+                'is_active' => false,
+            ]),
+            Question::create([
+                'category_id' => $category->id,
+                'question_text' => 'Inactive question two?',
+                'difficulty' => 'medium',
+                'is_active' => false,
+            ]),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.bulk-action'), [
+                'action' => 'activate',
+                'question_ids' => $questions->pluck('id')->all(),
+            ])
+            ->assertRedirect();
+
+        $questions->each(fn (Question $question) => $this->assertTrue($question->fresh()->is_active));
+    }
+
     public function test_question_requires_at_least_two_options(): void
     {
         $admin = User::factory()->admin()->create();
