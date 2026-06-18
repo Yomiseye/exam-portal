@@ -412,7 +412,7 @@
                                     </button>
                                 </div>
 
-                                <div class="mt-5 text-base leading-7 text-gray-950">{{ $answer->question->question_text }}</div>
+                                <div class="rich-content mt-5 text-base leading-7 text-gray-950">{!! $answer->question->question_text !!}</div>
 
                                 @if ($answer->question->image_path)
                                     <div class="mt-4">
@@ -436,7 +436,16 @@
                                                     @change="saveAnswer({{ $answer->question_id }}, {{ $option->id }})"
                                                     class="mt-1 border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                                                 >
-                                                <span class="ms-3 text-sm leading-6 text-gray-800">{{ $option->option_text }}</span>
+                                                <span class="ms-3 block">
+                                                    <span class="rich-content text-sm leading-6 text-gray-800">{!! $option->option_text !!}</span>
+                                                    @if ($option->image_path)
+                                                        <img
+                                                            src="{{ $option->imageUrl() }}"
+                                                            alt="Option image"
+                                                            class="mt-3 max-h-44 rounded-md border border-gray-200 object-contain"
+                                                        >
+                                                    @endif
+                                                </span>
                                             </label>
                                         @endforeach
                                     @elseif ($answer->question->question_type === \App\Models\Question::TYPE_MULTIPLE_CHOICE)
@@ -457,7 +466,16 @@
                                                     @change="saveAnswer({{ $answer->question_id }}, checkboxValues({{ $answer->question_id }}))"
                                                     class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                                                 >
-                                                <span class="ms-3 text-sm leading-6 text-gray-800">{{ $option->option_text }}</span>
+                                                <span class="ms-3 block">
+                                                    <span class="rich-content text-sm leading-6 text-gray-800">{!! $option->option_text !!}</span>
+                                                    @if ($option->image_path)
+                                                        <img
+                                                            src="{{ $option->imageUrl() }}"
+                                                            alt="Option image"
+                                                            class="mt-3 max-h-44 rounded-md border border-gray-200 object-contain"
+                                                        >
+                                                    @endif
+                                                </span>
                                             </label>
                                         @endforeach
                                     @else
@@ -468,7 +486,14 @@
 
                                         @foreach ($answer->question->options as $option)
                                             <div class="rounded-md border border-gray-200 p-4">
-                                                <div class="text-sm font-medium text-gray-700">{{ $option->option_text }}</div>
+                                                <div class="rich-content text-sm font-medium text-gray-700">{!! $option->option_text !!}</div>
+                                                @if ($option->image_path)
+                                                    <img
+                                                        src="{{ $option->imageUrl() }}"
+                                                        alt="Option image"
+                                                        class="mt-3 max-h-44 rounded-md border border-gray-200 object-contain"
+                                                    >
+                                                @endif
                                                 <select
                                                     name="answers[{{ $answer->question_id }}][{{ $option->id }}]"
                                                     data-matching-group="{{ $answer->question_id }}"

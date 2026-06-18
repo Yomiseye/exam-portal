@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['question_id', 'option_text', 'match_text', 'is_correct'])]
+#[Fillable(['question_id', 'option_text', 'match_text', 'image_path', 'is_correct'])]
 class Option extends Model
 {
     use HasFactory;
@@ -33,5 +33,12 @@ class Option extends Model
     public function attemptAnswers(): HasMany
     {
         return $this->hasMany(AttemptAnswer::class, 'selected_option_id');
+    }
+
+    public function imageUrl(): ?string
+    {
+        return $this->image_path
+            ? route('question-images.show', ['filename' => basename($this->image_path)])
+            : null;
     }
 }

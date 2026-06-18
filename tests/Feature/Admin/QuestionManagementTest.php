@@ -80,6 +80,33 @@ class QuestionManagementTest extends TestCase
             ->assertSee('Edit Question');
     }
 
+    public function test_admin_can_preview_question_with_answers_and_explanation(): void
+    {
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Chemistry');
+        $question = Question::create([
+            'category_id' => $subcategory->id,
+            'question_text' => '<p>What is H<sub>2</sub>O?</p>',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'explanation' => '<p>Water is H<sub>2</sub>O.</p>',
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $question->options()->createMany([
+            ['option_text' => '<p>Water</p>', 'is_correct' => true],
+            ['option_text' => '<p>Oxygen</p>', 'is_correct' => false],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.questions.preview', $question))
+            ->assertOk()
+            ->assertSee('Question Preview')
+            ->assertSee('What is H<sub>2</sub>O?', false)
+            ->assertSee('Water', false)
+            ->assertSee('Correct')
+            ->assertSee('Water is H<sub>2</sub>O.', false);
+    }
+
     public function test_admin_can_create_question_with_options(): void
     {
         $admin = User::factory()->admin()->create();
@@ -123,6 +150,65 @@ class QuestionManagementTest extends TestCase
         $this->assertSame(1, $question->options()->where('is_correct', true)->count());
     }
 
+    public function test_admin_can_create_question_with_rich_text_content(): void
+    {
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Chemistry');
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => '<p>What is H<sub>2</sub>O?</p>',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'explanation' => '<p>H<sub>2</sub>O is water.</p>',
+                'difficulty' => 'easy',
+                'is_active' => '1',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => '<p><strong>Water</strong></p>'],
+                    ['text' => '<p>Oxygen</p>'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', '<p>What is H<sub>2</sub>O?</p>')->firstOrFail();
+
+        $this->assertSame('<p>H<sub>2</sub>O is water.</p>', $question->explanation);
+        $this->assertDatabaseHas('options', [
+            'question_id' => $question->id,
+            'option_text' => '<p><strong>Water</strong></p>',
+            'is_correct' => true,
+        ]);
+    }
+
+    public function test_question_rich_text_removes_unsafe_markup(): void
+    {
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Security', 'Markup');
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => '<p onclick="alert(1)">Safe text</p><script>alert(1)</script>',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => '<p>Correct</p>'],
+                    ['text' => '<img src=x onerror=alert(1)>Wrong'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', '<p>Safe text</p>')->firstOrFail();
+
+        $this->assertStringNotContainsString('onclick', $question->question_text);
+        $this->assertStringNotContainsString('<script', $question->question_text);
+        $this->assertSame('Wrong', $question->options()->where('is_correct', false)->firstOrFail()->option_text);
+    }
+
     public function test_admin_can_create_question_with_image(): void
     {
         Storage::fake('public');
@@ -150,6 +236,79 @@ class QuestionManagementTest extends TestCase
 
         $this->assertNotNull($question->image_path);
         Storage::disk('public')->assertExists($question->image_path);
+    }
+
+    public function test_admin_can_create_question_with_option_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Specimens');
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'Which option shows a leaf?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['text' => 'Leaf', 'image' => UploadedFile::fake()->image('leaf.png')->size(512)],
+                    ['text' => 'Rock'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $question = Question::where('question_text', 'Which option shows a leaf?')->firstOrFail();
+        $option = $question->options()->where('option_text', 'Leaf')->firstOrFail();
+
+        $this->assertNotNull($option->image_path);
+        Storage::disk('public')->assertExists($option->image_path);
+    }
+
+    public function test_admin_can_remove_option_image(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        [$category, $subcategory] = $this->categoryPair('Science', 'Specimens');
+        Storage::disk('public')->put('question-images/leaf.png', 'image');
+
+        $question = Question::create([
+            'category_id' => $subcategory->id,
+            'question_text' => 'Remove option image?',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $leaf = $question->options()->create([
+            'option_text' => 'Leaf',
+            'image_path' => 'question-images/leaf.png',
+            'is_correct' => true,
+        ]);
+        $rock = $question->options()->create([
+            'option_text' => 'Rock',
+            'is_correct' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.questions.update', $question), [
+                'parent_category_id' => $category->id,
+                'subcategory_id' => $subcategory->id,
+                'question_text' => 'Remove option image?',
+                'question_type' => Question::TYPE_SINGLE_CHOICE,
+                'difficulty' => 'easy',
+                'correct_option' => '0',
+                'options' => [
+                    ['id' => $leaf->id, 'text' => 'Leaf', 'remove_image' => '1'],
+                    ['id' => $rock->id, 'text' => 'Rock'],
+                ],
+            ])
+            ->assertRedirect(route('admin.questions.index'));
+
+        $this->assertNull($leaf->fresh()->image_path);
+        Storage::disk('public')->assertMissing('question-images/leaf.png');
     }
 
     public function test_admin_can_create_question_with_explanation_image(): void
@@ -695,6 +854,48 @@ class QuestionManagementTest extends TestCase
 
         $this->assertSame(2, $multipleChoice->options()->where('is_correct', true)->count());
         $this->assertSame('Abuja', $matching->options()->where('option_text', 'Nigeria')->firstOrFail()->match_text);
+    }
+
+    public function test_admin_can_choose_worksheet_when_importing_multi_sheet_excel(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $file = $this->multiSheetExcelUpload(
+            [
+                ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'correct_answers'],
+                ['First Category', 'First Topic', 'single_choice', 'Question from first sheet?', 'easy', 'Yes', 'No', '1'],
+            ],
+            [
+                ['category', 'subcategory', 'question_type', 'question', 'difficulty', 'option_1', 'option_2', 'correct_answers'],
+                ['Second Category', 'Second Topic', 'single_choice', 'Question from second sheet?', 'easy', 'Yes', 'No', '1'],
+            ],
+        );
+
+        $sheetPicker = $this->actingAs($admin)
+            ->post(route('admin.questions.import.store'), [
+                'questions_file' => $file,
+            ])
+            ->assertOk()
+            ->assertSee('Choose the sheet you want to import.')
+            ->assertSee('First')
+            ->assertSee('Second');
+
+        preg_match('/name="import_path" value="([^"]+)"/', $sheetPicker->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+
+        $this->actingAs($admin)
+            ->post(route('admin.questions.import.store'), [
+                'import_path' => $matches[1],
+                'sheet_index' => 1,
+            ])
+            ->assertRedirect(route('admin.questions.index'))
+            ->assertSessionHas('status', '1 question(s) imported successfully.');
+
+        $this->assertDatabaseMissing('questions', [
+            'question_text' => 'Question from first sheet?',
+        ]);
+        $this->assertDatabaseHas('questions', [
+            'question_text' => 'Question from second sheet?',
+        ]);
     }
 
     public function test_question_import_rejects_invalid_rows_without_creating_questions(): void

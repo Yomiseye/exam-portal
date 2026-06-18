@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Option;
 use App\Models\Question;
 use App\Models\QuestionTag;
 use App\Services\QuestionImportSpreadsheet;
+use App\Support\RichText;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,7 +95,7 @@ class QuestionController extends Controller
             $this->syncExplanationImage($request, $question);
             $this->syncTags($question, $data['tags']);
 
-            $this->syncOptions($question, $data['options'], $data['correct_options']);
+            $this->syncOptions($request, $question, $data['options'], $data['correct_options']);
         });
 
         return redirect()
@@ -109,10 +111,10 @@ class QuestionController extends Controller
         $validated = $request->validate([
             'questions_file' => ['nullable', 'required_without:import_path', 'file', 'mimes:xlsx', 'max:5120'],
             'import_path' => ['nullable', 'string'],
-            'sheet_index' => ['nullable', 'integer', 'min:0'],
+            'sheet_index' => ['nullable', 'required_with:import_path', 'integer', 'min:0'],
         ]);
 
-        [$path, $temporaryImportPath, $sheetIndex, $sheetSelectionView] = $this->resolveImportSheet(
+        [$path, $temporaryImportPath, $sheetIndex, $sheetSelectionView, $sheets] = $this->resolveImportSheet(
             $request,
             $spreadsheet,
             'questions_file',
@@ -125,14 +127,13 @@ class QuestionController extends Controller
 
         $rows = $spreadsheet->rows($path, $sheetIndex);
 
-        if ($temporaryImportPath) {
-            Storage::disk('local')->delete($temporaryImportPath);
-        }
-
         if ($rows === []) {
-            return back()
-                ->withInput()
-                ->withErrors(['questions_file' => 'The spreadsheet does not contain any question rows.']);
+            return $this->importSheetErrorView(
+                'The selected worksheet does not contain any question rows.',
+                $temporaryImportPath,
+                $sheets,
+                $view = 'admin.questions.import',
+            );
         }
 
         $importRows = [];
@@ -152,9 +153,12 @@ class QuestionController extends Controller
         }
 
         if ($errors !== []) {
-            return back()
-                ->withInput()
-                ->withErrors(['questions_file' => implode("\n", $errors)]);
+            return $this->importSheetErrorView(
+                implode("\n", $errors),
+                $temporaryImportPath,
+                $sheets,
+                'admin.questions.import',
+            );
         }
 
         DB::transaction(function () use ($importRows): void {
@@ -166,9 +170,13 @@ class QuestionController extends Controller
                 $question = Question::create($questionData);
                 $this->syncTags($question, $data['tags']);
 
-                $this->syncOptions($question, $data['options'], $data['correct_options']);
+                $this->syncOptions(null, $question, $data['options'], $data['correct_options']);
             }
         });
+
+        if ($temporaryImportPath) {
+            Storage::disk('local')->delete($temporaryImportPath);
+        }
 
         return redirect()
             ->route('admin.questions.index')
@@ -219,6 +227,7 @@ class QuestionController extends Controller
 
                 $this->deleteQuestionImage($question);
                 $this->deleteExplanationImage($question);
+                $this->deleteOptionImages($question);
                 $question->tags()->detach();
                 $question->delete();
                 $deleted++;
@@ -248,6 +257,18 @@ class QuestionController extends Controller
     }
 
     /**
+     * Preview a question as it will appear to students, including answers and explanation.
+     */
+    public function preview(Question $question): View
+    {
+        $question->load(['category.parent', 'options', 'tags']);
+
+        return view('admin.questions.preview', [
+            'question' => $question,
+        ]);
+    }
+
+    /**
      * Update the specified question.
      */
     public function update(Request $request, Question $question): RedirectResponse
@@ -264,7 +285,7 @@ class QuestionController extends Controller
             $this->syncExplanationImage($request, $question);
             $this->syncTags($question, $data['tags']);
 
-            $this->syncOptions($question, $data['options'], $data['correct_options']);
+            $this->syncOptions($request, $question, $data['options'], $data['correct_options']);
         });
 
         return redirect()
@@ -314,6 +335,7 @@ class QuestionController extends Controller
         DB::transaction(function () use ($question): void {
             $this->deleteQuestionImage($question);
             $this->deleteExplanationImage($question);
+            $this->deleteOptionImages($question);
             $question->tags()->detach();
             $question->delete();
         });
@@ -358,8 +380,11 @@ class QuestionController extends Controller
             'difficulty' => ['required', Rule::in(['easy', 'medium', 'hard'])],
             'is_active' => ['sometimes', 'boolean'],
             'options' => ['required', 'array', 'min:2'],
+            'options.*.id' => ['nullable', 'integer'],
             'options.*.text' => ['required', 'string'],
             'options.*.match_text' => ['nullable', 'string'],
+            'options.*.image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'options.*.remove_image' => ['sometimes', 'boolean'],
             'correct_option' => ['nullable', 'integer'],
             'correct_options' => ['nullable', 'array'],
             'correct_options.*' => ['integer'],
@@ -372,6 +397,16 @@ class QuestionController extends Controller
             $hasNewCategory = filled($request->input('new_category_name'));
             $hasExistingSubcategory = filled($request->input('subcategory_id'));
             $hasNewSubcategory = filled($request->input('new_subcategory_name'));
+
+            if (RichText::plainText($request->input('question_text')) === '') {
+                $validator->errors()->add('question_text', 'Enter the question.');
+            }
+
+            foreach ($options as $index => $option) {
+                if (RichText::plainText($option['text'] ?? '') === '') {
+                    $validator->errors()->add("options.{$index}.text", 'Enter the option text.');
+                }
+            }
 
             if ($hasExistingCategory && $hasNewCategory) {
                 $validator->errors()->add('new_category_name', 'Choose an existing category or add a new one, not both.');
@@ -440,7 +475,7 @@ class QuestionController extends Controller
             if ($questionType === Question::TYPE_TRUE_FALSE) {
                 $optionTexts = collect($options)
                     ->pluck('text')
-                    ->map(fn ($text) => strtolower(trim((string) $text)))
+                    ->map(fn ($text) => strtolower(RichText::plainText((string) $text)))
                     ->sort()
                     ->values()
                     ->all();
@@ -461,13 +496,19 @@ class QuestionController extends Controller
                 'new_subcategory_name' => $validated['new_subcategory_name'] ?? null,
             ],
             'question' => [
-                'question_text' => $validated['question_text'],
+                'question_text' => RichText::clean($validated['question_text']),
                 'question_type' => $validated['question_type'],
-                'explanation' => $validated['explanation'] ?? null,
+                'explanation' => filled($validated['explanation'] ?? null) ? RichText::clean($validated['explanation']) : null,
                 'difficulty' => $validated['difficulty'],
                 'is_active' => $request->boolean('is_active'),
             ],
-            'options' => array_values($validated['options']),
+            'options' => collect(array_values($validated['options']))
+                ->map(fn (array $option) => [
+                    'id' => $option['id'] ?? null,
+                    'text' => RichText::clean($option['text']),
+                    'match_text' => $option['match_text'] ?? null,
+                ])
+                ->all(),
             'correct_options' => $this->correctOptionIndexes($request),
             'tags' => $this->tagNames($validated['tags'] ?? ''),
         ];
@@ -546,23 +587,71 @@ class QuestionController extends Controller
         }
     }
 
+    private function deleteOptionImage(Option $option): void
+    {
+        if ($option->image_path) {
+            Storage::disk('public')->delete($option->image_path);
+        }
+    }
+
+    private function deleteOptionImages(Question $question): void
+    {
+        $question->options()->whereNotNull('image_path')->get()->each(
+            fn (Option $option) => $this->deleteOptionImage($option)
+        );
+    }
+
     /**
-     * Replace a question's answer options.
+     * Synchronize a question's answer options.
      *
-     * @param  array<int, array{text: string, match_text?: string}>  $options
+     * @param  array<int, array{id?: int|null, text: string, match_text?: string}>  $options
      * @param  array<int, int>  $correctOptions
      */
-    private function syncOptions(Question $question, array $options, array $correctOptions): void
+    private function syncOptions(?Request $request, Question $question, array $options, array $correctOptions): void
     {
-        $question->options()->delete();
+        $existingOptions = $question->options()->get()->keyBy('id');
+        $keptOptionIds = [];
 
         foreach ($options as $index => $option) {
-            $question->options()->create([
+            $optionModel = filled($option['id'] ?? null)
+                ? $existingOptions->get((int) $option['id'])
+                : null;
+
+            $optionData = [
                 'option_text' => $option['text'],
                 'match_text' => $question->question_type === Question::TYPE_MATCHING ? ($option['match_text'] ?? null) : null,
                 'is_correct' => $question->question_type === Question::TYPE_MATCHING || in_array($index, $correctOptions, true),
-            ]);
+            ];
+
+            if ($optionModel) {
+                $optionModel->update($optionData);
+            } else {
+                $optionModel = $question->options()->create($optionData);
+            }
+
+            if ($request?->boolean("options.{$index}.remove_image") || $request?->hasFile("options.{$index}.image")) {
+                $this->deleteOptionImage($optionModel);
+
+                if ($request->boolean("options.{$index}.remove_image") && ! $request->hasFile("options.{$index}.image")) {
+                    $optionModel->update(['image_path' => null]);
+                }
+            }
+
+            if ($request?->hasFile("options.{$index}.image")) {
+                $optionModel->update([
+                    'image_path' => $request->file("options.{$index}.image")->store('question-images', 'public'),
+                ]);
+            }
+
+            $keptOptionIds[] = $optionModel->id;
         }
+
+        $existingOptions
+            ->reject(fn (Option $option) => in_array($option->id, $keptOptionIds, true))
+            ->each(function (Option $option): void {
+                $this->deleteOptionImage($option);
+                $option->delete();
+            });
     }
 
     /**
@@ -803,7 +892,7 @@ class QuestionController extends Controller
     }
 
     /**
-     * @return array{0: string, 1: string|null, 2: int, 3: View|null}
+     * @return array{0: string, 1: string|null, 2: int, 3: View|null, 4: array<int, array{index: int, name: string, path: string}>}
      */
     private function resolveImportSheet(
         Request $request,
@@ -834,10 +923,11 @@ class QuestionController extends Controller
                         'importFileName' => basename($temporaryImportPath),
                         'sheetError' => 'Choose the worksheet to import.',
                     ]),
+                    $sheets,
                 ];
             }
 
-            return [$path, $temporaryImportPath, $sheetIndex, null];
+            return [$path, $temporaryImportPath, $sheetIndex, null, $sheets];
         }
 
         $uploadedFile = $request->file($fileInput);
@@ -858,10 +948,31 @@ class QuestionController extends Controller
                     'importFileName' => $uploadedFile->getClientOriginalName(),
                     'sheetError' => null,
                 ]),
+                $sheets,
             ];
         }
 
-        return [$path, null, (int) ($sheets[0]['index'] ?? 0), null];
+        return [$path, null, (int) ($sheets[0]['index'] ?? 0), null, $sheets];
+    }
+
+    /**
+     * @param  array<int, array{index: int, name: string, path: string}>  $sheets
+     */
+    private function importSheetErrorView(string $message, ?string $temporaryImportPath, array $sheets, string $view): RedirectResponse|View
+    {
+        if (! $temporaryImportPath) {
+            return back()
+                ->withInput()
+                ->withErrors(['questions_file' => $message]);
+        }
+
+        return view($view, [
+            'categories' => $this->parentCategories(),
+            'sheets' => $sheets,
+            'importPath' => $temporaryImportPath,
+            'importFileName' => basename($temporaryImportPath),
+            'sheetError' => $message,
+        ]);
     }
 
     /**

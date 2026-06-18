@@ -129,7 +129,7 @@
                                         >
                                     </td>
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-md">
-                                        {{ \Illuminate\Support\Str::limit($question->question_text, 100) }}
+                                        {{ \Illuminate\Support\Str::limit(\App\Support\RichText::plainText($question->question_text), 100) }}
                                         @if ($question->image_path)
                                             <div class="mt-1 text-xs font-normal text-gray-500">Has image</div>
                                         @endif
@@ -176,6 +176,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex justify-end gap-3">
+                                            <a href="{{ route('admin.questions.preview', $question) }}" class="text-teal-700 hover:text-teal-900">Preview</a>
                                             <a href="{{ route('admin.questions.edit', $question) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
 
                                             <form method="POST" action="{{ route('admin.questions.permanent-destroy', $question) }}">

@@ -49,6 +49,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('/questions/import', [QuestionController::class, 'storeImport'])->name('questions.import.store');
         Route::post('/questions/bulk-actions', [QuestionController::class, 'bulkAction'])->name('questions.bulk-action');
         Route::patch('/questions/{question}/status', [QuestionController::class, 'updateStatus'])->name('questions.status.update');
+        Route::get('/questions/{question}/preview', [QuestionController::class, 'preview'])->name('questions.preview');
         Route::delete('/questions/{question}/permanent', [QuestionController::class, 'permanentDestroy'])->name('questions.permanent-destroy');
         Route::resource('questions', QuestionController::class)->except(['show']);
         Route::delete('/exams/{exam}/permanent', [ExamController::class, 'permanentDestroy'])->name('exams.permanent-destroy');

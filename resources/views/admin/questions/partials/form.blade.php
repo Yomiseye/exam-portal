@@ -21,20 +21,23 @@
     if (! $optionRows) {
         $optionRows = $question?->options
             ->map(fn ($option) => [
+                'id' => $option->id,
                 'text' => $option->option_text,
                 'match_text' => $option->match_text,
+                'image_path' => $option->image_path,
+                'image_url' => $option->imageUrl(),
             ])
             ->values()
             ->all();
 
         if (! $optionRows) {
             $optionRows = $questionType === \App\Models\Question::TYPE_TRUE_FALSE
-                ? [['text' => 'True'], ['text' => 'False']]
+                ? [['text' => 'True', 'match_text' => '', 'image_path' => null, 'image_url' => null], ['text' => 'False', 'match_text' => '', 'image_path' => null, 'image_url' => null]]
                 : [
-                    ['text' => '', 'match_text' => ''],
-                    ['text' => '', 'match_text' => ''],
-                    ['text' => '', 'match_text' => ''],
-                    ['text' => '', 'match_text' => ''],
+                    ['text' => '', 'match_text' => '', 'image_path' => null, 'image_url' => null],
+                    ['text' => '', 'match_text' => '', 'image_path' => null, 'image_url' => null],
+                    ['text' => '', 'match_text' => '', 'image_path' => null, 'image_url' => null],
+                    ['text' => '', 'match_text' => '', 'image_path' => null, 'image_url' => null],
                 ];
         }
     }
@@ -55,11 +58,79 @@
     }
 
     $tagValue = old('tags', $question?->tags?->pluck('name')->implode(', '));
+    $questionTextValue = old('question_text', $question?->question_text ?? '');
+    $explanationValue = old('explanation', $question?->explanation ?? '');
 @endphp
+
+<style>
+    .rich-editor-shell {
+        overflow: hidden;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #ffffff;
+    }
+
+    .rich-editor-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        border-bottom: 1px solid #d1d5db;
+        background: #f8fafc;
+        padding: 0.45rem;
+    }
+
+    .rich-editor-toolbar button {
+        min-width: 2rem;
+        border-radius: 4px;
+        padding: 0.25rem 0.45rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: #374151;
+    }
+
+    .rich-editor-toolbar button:hover {
+        background: #e5e7eb;
+    }
+
+    .rich-editor-input {
+        min-height: 8rem;
+        padding: 0.75rem;
+        outline: none;
+    }
+
+    .rich-editor-input:empty::before {
+        color: #9ca3af;
+        content: attr(data-placeholder);
+    }
+
+    .rich-editor-option .rich-editor-input {
+        min-height: 5rem;
+    }
+
+    .rich-content :where(p, ul, ol, blockquote, pre) {
+        margin-bottom: 0.65rem;
+    }
+
+    .rich-content :where(ul, ol) {
+        padding-left: 1.25rem;
+    }
+
+    .rich-content ul {
+        list-style: disc;
+    }
+
+    .rich-content ol {
+        list-style: decimal;
+    }
+</style>
 
 <div
     x-data="{
         questionType: @js($questionType),
+        questionText: @js($questionTextValue),
+        explanation: @js($explanationValue),
+        explanationOpen: @js(filled($explanationValue) || $question?->explanation_image_path),
+        activeEditor: null,
         categoryId: @js($selectedParentCategoryId ? (int) $selectedParentCategoryId : null),
         subcategoryId: @js($selectedSubcategoryId ? (int) $selectedSubcategoryId : null),
         categories: @js($categoryRows),
@@ -69,17 +140,32 @@
         init() {
             this.$watch('questionType', (value) => {
                 if (value === 'true_false') {
-                    this.options = [{ text: 'True', match_text: '' }, { text: 'False', match_text: '' }];
+                    this.options = [
+                        { text: 'True', match_text: '', image_path: null, image_url: null },
+                        { text: 'False', match_text: '', image_path: null, image_url: null },
+                    ];
                     this.correctOptions = [];
                     this.correctOption = null;
                 }
             });
         },
+        setActiveEditor(editor) {
+            this.activeEditor = editor;
+        },
+        formatRichText(command, value = null) {
+            if (! this.activeEditor) {
+                return;
+            }
+
+            this.activeEditor.focus();
+            document.execCommand(command, false, value);
+            this.activeEditor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        },
         subcategories() {
             return this.categories.find((category) => category.id === this.categoryId)?.subcategories ?? [];
         },
         addOption() {
-            this.options.push({ text: '', match_text: '' });
+            this.options.push({ text: '', match_text: '', image_path: null, image_url: null });
         },
         removeOption(index) {
             if (this.options.length <= 2 || this.questionType === 'true_false') {
@@ -185,13 +271,30 @@
 
 <div>
     <x-input-label for="question_text" value="Question" />
-    <textarea
-        id="question_text"
-        name="question_text"
-        rows="5"
-        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-        required
-    >{{ old('question_text', $question?->question_text) }}</textarea>
+    <input type="hidden" id="question_text" name="question_text" x-model="questionText">
+    <div class="mt-1 rich-editor-shell">
+        <div class="rich-editor-toolbar" aria-label="Question formatting toolbar">
+            <button type="button" title="Bold" @mousedown.prevent="formatRichText('bold')">B</button>
+            <button type="button" title="Italic" @mousedown.prevent="formatRichText('italic')"><span class="italic">I</span></button>
+            <button type="button" title="Underline" @mousedown.prevent="formatRichText('underline')"><span class="underline">U</span></button>
+            <button type="button" title="Bulleted list" @mousedown.prevent="formatRichText('insertUnorderedList')">UL</button>
+            <button type="button" title="Numbered list" @mousedown.prevent="formatRichText('insertOrderedList')">OL</button>
+            <button type="button" title="Subscript" @mousedown.prevent="formatRichText('subscript')">X<sub>2</sub></button>
+            <button type="button" title="Superscript" @mousedown.prevent="formatRichText('superscript')">X<sup>2</sup></button>
+            <button type="button" title="Code" @mousedown.prevent="formatRichText('formatBlock', 'pre')">&lt;/&gt;</button>
+            <button type="button" title="Clear formatting" @mousedown.prevent="formatRichText('removeFormat')">Tx</button>
+        </div>
+        <div
+            contenteditable="true"
+            class="rich-editor-input"
+            data-placeholder="Type the question here"
+            x-ref="questionEditor"
+            x-init="$el.innerHTML = questionText"
+            @focus="setActiveEditor($el)"
+            @click="setActiveEditor($el)"
+            @input="questionText = $el.innerHTML"
+        ></div>
+    </div>
     <x-input-error class="mt-2" :messages="$errors->get('question_text')" />
 </div>
 
@@ -246,22 +349,45 @@
     <x-input-error class="mt-2" :messages="$errors->get('tags')" />
 </div>
 
-<div>
-    <x-input-label for="explanation" value="Explanation" />
-    <textarea
-        id="explanation"
-        name="explanation"
-        rows="4"
-        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-    >{{ old('explanation', $question?->explanation) }}</textarea>
-    <x-input-error class="mt-2" :messages="$errors->get('explanation')" />
-</div>
+<div class="rounded-md border border-gray-200 bg-gray-50 p-4">
+    <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold text-gray-900" @click="explanationOpen = ! explanationOpen">
+        <span x-text="explanationOpen ? '-' : '+'"></span>
+        Add Explanation
+    </button>
 
-<div>
-    <x-input-label for="explanation_image" value="Explanation Image" />
+    <div class="mt-4 space-y-4" x-show="explanationOpen" x-cloak>
+        <div>
+            <input type="hidden" id="explanation" name="explanation" x-model="explanation">
+            <div class="rich-editor-shell bg-white">
+                <div class="rich-editor-toolbar" aria-label="Explanation formatting toolbar">
+                    <button type="button" title="Bold" @mousedown.prevent="formatRichText('bold')">B</button>
+                    <button type="button" title="Italic" @mousedown.prevent="formatRichText('italic')"><span class="italic">I</span></button>
+                    <button type="button" title="Underline" @mousedown.prevent="formatRichText('underline')"><span class="underline">U</span></button>
+                    <button type="button" title="Bulleted list" @mousedown.prevent="formatRichText('insertUnorderedList')">UL</button>
+                    <button type="button" title="Numbered list" @mousedown.prevent="formatRichText('insertOrderedList')">OL</button>
+                    <button type="button" title="Subscript" @mousedown.prevent="formatRichText('subscript')">X<sub>2</sub></button>
+                    <button type="button" title="Superscript" @mousedown.prevent="formatRichText('superscript')">X<sup>2</sup></button>
+                    <button type="button" title="Code" @mousedown.prevent="formatRichText('formatBlock', 'pre')">&lt;/&gt;</button>
+                    <button type="button" title="Clear formatting" @mousedown.prevent="formatRichText('removeFormat')">Tx</button>
+                </div>
+                <div
+                    contenteditable="true"
+                    class="rich-editor-input"
+                    data-placeholder="Add explanation here"
+                    x-init="$el.innerHTML = explanation"
+                    @focus="setActiveEditor($el)"
+                    @click="setActiveEditor($el)"
+                    @input="explanation = $el.innerHTML"
+                ></div>
+            </div>
+            <x-input-error class="mt-2" :messages="$errors->get('explanation')" />
+        </div>
+
+        <div>
+            <x-input-label for="explanation_image" value="Explanation Image" />
 
     @if ($question?->explanation_image_path)
-        <div class="mt-2 rounded-md border border-gray-200 p-3">
+        <div class="mt-2 rounded-md border border-gray-200 bg-white p-3">
             <img
                 src="{{ $question->explanationImageUrl() }}"
                 alt="Current explanation image"
@@ -292,6 +418,8 @@
     <p class="mt-1 text-sm text-gray-500">Optional JPG, PNG, or WebP image shown with the explanation. Maximum size: 2MB.</p>
     <x-input-error class="mt-2" :messages="$errors->get('explanation_image')" />
     <x-input-error class="mt-2" :messages="$errors->get('remove_explanation_image')" />
+        </div>
+    </div>
 </div>
 
 <div>
@@ -300,38 +428,65 @@
         <p class="text-sm text-gray-500" x-text="questionType === 'multiple_choice' ? 'Select every correct answer.' : (questionType === 'matching' ? 'Enter matching pairs.' : 'Select one correct answer.')"></p>
     </div>
 
-    <div class="mt-3 space-y-3">
+    <div class="mt-3 grid gap-5 lg:grid-cols-2">
         <template x-for="(option, index) in options" :key="index">
-            <div class="flex items-start gap-3">
-                <input
-                    x-show="questionType === 'single_choice' || questionType === 'true_false'"
-                    type="radio"
-                    name="correct_option"
-                    :value="index"
-                    x-model.number="correctOption"
-                    class="mt-3 border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                >
+            <div class="rich-editor-option">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                        <span x-text="String.fromCharCode(65 + index)"></span>
+                        <input
+                            x-show="questionType === 'single_choice' || questionType === 'true_false'"
+                            type="radio"
+                            name="correct_option"
+                            :value="index"
+                            x-model.number="correctOption"
+                            class="border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                        >
 
-                <input
-                    x-show="questionType === 'multiple_choice'"
-                    type="checkbox"
-                    name="correct_options[]"
-                    :value="index"
-                    x-model.number="correctOptions"
-                    class="mt-3 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                >
+                        <input
+                            x-show="questionType === 'multiple_choice'"
+                            type="checkbox"
+                            name="correct_options[]"
+                            :value="index"
+                            x-model.number="correctOptions"
+                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                        >
+                    </label>
 
-                <span x-show="questionType === 'matching'" class="mt-2 min-w-6 text-sm font-medium text-gray-500" x-text="index + 1"></span>
+                    <button
+                        type="button"
+                        class="text-sm font-medium text-red-600 hover:text-red-900 disabled:cursor-not-allowed disabled:text-gray-300"
+                        @click="removeOption(index)"
+                        :disabled="options.length <= 2 || questionType === 'true_false'"
+                    >
+                        Remove
+                    </button>
+                </div>
 
-                <div class="flex-1">
-                    <input
-                        :name="'options[' + index + '][text]'"
-                        type="text"
-                        x-model="option.text"
-                        :placeholder="'Option ' + (index + 1)"
-                        required
-                        class="block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                    />
+                <div class="rich-editor-shell">
+                    <div class="rich-editor-toolbar" aria-label="Answer formatting toolbar">
+                        <button type="button" title="Subscript" @mousedown.prevent="formatRichText('subscript')">X<sub>2</sub></button>
+                        <button type="button" title="Superscript" @mousedown.prevent="formatRichText('superscript')">X<sup>2</sup></button>
+                        <button type="button" title="Bold" @mousedown.prevent="formatRichText('bold')">B</button>
+                        <button type="button" title="Italic" @mousedown.prevent="formatRichText('italic')"><span class="italic">I</span></button>
+                        <button type="button" title="Underline" @mousedown.prevent="formatRichText('underline')"><span class="underline">U</span></button>
+                        <button type="button" title="Code" @mousedown.prevent="formatRichText('formatBlock', 'pre')">&lt;/&gt;</button>
+                        <button type="button" title="Clear formatting" @mousedown.prevent="formatRichText('removeFormat')">Tx</button>
+                    </div>
+                    <template x-if="option.id">
+                        <input type="hidden" :name="'options[' + index + '][id]'" :value="option.id">
+                    </template>
+                    <input type="hidden" :name="'options[' + index + '][text]'" :value="option.text">
+                    <div
+                        contenteditable="true"
+                        class="rich-editor-input"
+                        :data-placeholder="'Option ' + String.fromCharCode(65 + index)"
+                        x-init="$el.innerHTML = option.text"
+                        @focus="setActiveEditor($el)"
+                        @click="setActiveEditor($el)"
+                        @input="option.text = $el.innerHTML"
+                    ></div>
+                </div>
 
                     <input
                         x-show="questionType === 'matching'"
@@ -341,22 +496,49 @@
                         :placeholder="'Match for item ' + (index + 1)"
                         class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                     />
-                </div>
 
-                <button
-                    type="button"
-                    class="mt-2 text-sm font-medium text-red-600 hover:text-red-900 disabled:cursor-not-allowed disabled:text-gray-300"
-                    @click="removeOption(index)"
-                    :disabled="options.length <= 2 || questionType === 'true_false'"
-                >
-                    Remove
-                </button>
+                    <div class="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Option Image</div>
+                                <p class="mt-1 text-xs text-gray-500">Optional JPG, PNG, or WebP. Maximum size: 2MB.</p>
+                            </div>
+
+                            <template x-if="option.image_url">
+                                <label class="flex items-center text-xs text-gray-600">
+                                    <input
+                                        type="checkbox"
+                                        :name="'options[' + index + '][remove_image]'"
+                                        value="1"
+                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                    >
+                                    <span class="ms-2">Remove image</span>
+                                </label>
+                            </template>
+                        </div>
+
+                        <template x-if="option.image_url">
+                            <img
+                                :src="option.image_url"
+                                alt="Current option image"
+                                class="mt-3 max-h-40 rounded-md border border-gray-200 bg-white object-contain"
+                            >
+                        </template>
+
+                        <input
+                            :id="'option_image_' + index"
+                            :name="'options[' + index + '][image]'"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            class="mt-3 block w-full text-xs text-gray-700 file:me-3 file:rounded-md file:border-0 file:bg-gray-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-gray-700"
+                        >
+                    </div>
             </div>
         </template>
     </div>
 
-    <button type="button" class="mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-900" @click="addOption" x-show="questionType !== 'true_false'">
-        Add another option
+    <button type="button" class="mt-5 text-sm font-semibold text-indigo-600 hover:text-indigo-900" @click="addOption" x-show="questionType !== 'true_false'">
+        + Add New Choice
     </button>
 
     <x-input-error class="mt-2" :messages="$errors->get('options')" />
@@ -364,6 +546,9 @@
         <x-input-error class="mt-2" :messages="$messages" />
     @endforeach
     @foreach ($errors->get('options.*.match_text') as $messages)
+        <x-input-error class="mt-2" :messages="$messages" />
+    @endforeach
+    @foreach ($errors->get('options.*.image') as $messages)
         <x-input-error class="mt-2" :messages="$messages" />
     @endforeach
     <x-input-error class="mt-2" :messages="$errors->get('correct_option')" />

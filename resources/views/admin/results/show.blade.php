@@ -137,7 +137,7 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Question {{ $loop->iteration }}</div>
-                                <div class="mt-2 text-gray-900">{{ $answer->question->question_text }}</div>
+                                <div class="rich-content mt-2 text-gray-900">{!! $answer->question->question_text !!}</div>
                             </div>
 
                             <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $answer->is_correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
@@ -150,15 +150,48 @@
                                 <div class="font-medium text-gray-500">Selected Answer</div>
                                 <div class="mt-1 text-gray-900">
                                     @if ($questionType === \App\Models\Question::TYPE_MULTIPLE_CHOICE)
-                                        {{ $selectedOptions->pluck('option_text')->implode(', ') ?: 'No answer selected' }}
+                                        @forelse ($selectedOptions as $selectedOption)
+                                            <div class="mb-3">
+                                                <div>{!! $selectedOption->option_text !!}</div>
+                                                @if ($selectedOption->image_path)
+                                                    <img
+                                                        src="{{ $selectedOption->imageUrl() }}"
+                                                        alt="Selected option image"
+                                                        class="mt-2 max-h-36 rounded-md border border-gray-200 object-contain"
+                                                    >
+                                                @endif
+                                            </div>
+                                        @empty
+                                            No answer selected
+                                        @endforelse
                                     @elseif ($questionType === \App\Models\Question::TYPE_MATCHING)
                                         <div class="space-y-1">
                                             @foreach ($answer->question->options as $option)
-                                                <div>{{ $option->option_text }}: {{ $matchingAnswer[$option->id] ?? 'No answer selected' }}</div>
+                                                <div class="mb-3">
+                                                    <span class="rich-content inline-block">{!! $option->option_text !!}</span>: {{ $matchingAnswer[$option->id] ?? 'No answer selected' }}
+                                                    @if ($option->image_path)
+                                                        <img
+                                                            src="{{ $option->imageUrl() }}"
+                                                            alt="Option image"
+                                                            class="mt-2 max-h-36 rounded-md border border-gray-200 object-contain"
+                                                        >
+                                                    @endif
+                                                </div>
                                             @endforeach
                                         </div>
                                     @else
-                                        {{ $answer->selectedOption?->option_text ?? 'No answer selected' }}
+                                        @if ($answer->selectedOption)
+                                            <div class="rich-content">{!! $answer->selectedOption->option_text !!}</div>
+                                            @if ($answer->selectedOption->image_path)
+                                                <img
+                                                    src="{{ $answer->selectedOption->imageUrl() }}"
+                                                    alt="Selected option image"
+                                                    class="mt-2 max-h-36 rounded-md border border-gray-200 object-contain"
+                                                >
+                                            @endif
+                                        @else
+                                            No answer selected
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -169,11 +202,31 @@
                                     @if ($questionType === \App\Models\Question::TYPE_MATCHING)
                                         <div class="space-y-1">
                                             @foreach ($answer->question->options as $option)
-                                                <div>{{ $option->option_text }}: {{ $option->match_text }}</div>
+                                                <div class="mb-3">
+                                                    <span class="rich-content inline-block">{!! $option->option_text !!}</span>: {{ $option->match_text }}
+                                                    @if ($option->image_path)
+                                                        <img
+                                                            src="{{ $option->imageUrl() }}"
+                                                            alt="Correct option image"
+                                                            class="mt-2 max-h-36 rounded-md border border-gray-200 object-contain"
+                                                        >
+                                                    @endif
+                                                </div>
                                             @endforeach
                                         </div>
                                     @else
-                                        {{ $correctOptions->pluck('option_text')->implode(', ') }}
+                                        @foreach ($correctOptions as $correctOption)
+                                            <div class="rich-content mb-3">
+                                                <div>{!! $correctOption->option_text !!}</div>
+                                                @if ($correctOption->image_path)
+                                                    <img
+                                                        src="{{ $correctOption->imageUrl() }}"
+                                                        alt="Correct option image"
+                                                        class="mt-2 max-h-36 rounded-md border border-gray-200 object-contain"
+                                                    >
+                                                @endif
+                                            </div>
+                                        @endforeach
                                     @endif
                                 </div>
                             </div>
@@ -181,7 +234,7 @@
 
                         @if ($answer->question->explanation)
                             <div class="mt-3 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-                                {{ $answer->question->explanation }}
+                                <div class="rich-content">{!! $answer->question->explanation !!}</div>
                             </div>
                         @endif
 

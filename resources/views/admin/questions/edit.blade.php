@@ -4,9 +4,14 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Edit Question
             </h2>
-            <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
-                Back to questions
-            </a>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('admin.questions.preview', $question) }}" class="text-sm font-medium text-teal-700 hover:text-teal-900">
+                    Preview
+                </a>
+                <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                    Back to questions
+                </a>
+            </div>
         </div>
     </x-slot>
 
