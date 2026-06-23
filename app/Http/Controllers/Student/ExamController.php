@@ -280,14 +280,18 @@ class ExamController extends Controller
 
         $validator = Validator::make($request->all(), [
             'answers' => ['nullable', 'array'],
+            'submit_unanswered' => ['nullable', 'boolean'],
         ]);
 
-        $validator->after(function ($validator) use ($request, $attempt, $isExpired): void {
+        $submitUnanswered = $request->input('submit_unanswered') === '1'
+            || $request->boolean('submit_unanswered');
+
+        $validator->after(function ($validator) use ($request, $attempt, $isExpired, $submitUnanswered): void {
             foreach ($attempt->answers as $answer) {
                 $value = $this->submittedOrSavedAnswer($request, $answer);
 
                 if (! $this->answerIsComplete($answer, $value)) {
-                    if (! $isExpired) {
+                    if (! $isExpired && ! $submitUnanswered) {
                         $validator->errors()->add("answers.{$answer->question_id}", 'Choose an answer.');
                     }
 

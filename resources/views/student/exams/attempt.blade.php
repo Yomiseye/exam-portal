@@ -120,8 +120,7 @@
                         this.remaining = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
                         if (diff <= 0 && ! this.submitted) {
-                            this.submitted = true;
-                            document.getElementById('attempt-form')?.submit();
+                            this.submitTimedOut();
                         }
                     },
                     init() {
@@ -188,6 +187,15 @@
                     },
                     unansweredCount() {
                         return this.total - this.answeredCount();
+                    },
+                    firstUnansweredIndex() {
+                        for (let index = 0; index < this.total; index++) {
+                            if (! this.answered[index]) {
+                                return index;
+                            }
+                        }
+
+                        return 0;
                     },
                     async saveAnswer(questionId, answer) {
                         this.saving = true;
@@ -270,7 +278,32 @@
                         this.flagged[index] = ! this.flagged[index];
                     },
                     confirmSubmit() {
+                        if (this.unansweredCount() === 0) {
+                            this.submitCompleted();
+                            return;
+                        }
+
                         this.submitConfirm = true;
+                    },
+                    reviewUnanswered() {
+                        this.submitConfirm = false;
+                        this.goTo(this.firstUnansweredIndex());
+                    },
+                    submitCompleted() {
+                        this.submitWith(this.$refs.completedSubmit);
+                    },
+                    submitTimedOut() {
+                        this.submitWith(this.$refs.timeoutSubmit);
+                    },
+                    submitWith(submitter) {
+                        this.submitted = true;
+
+                        if (this.$el.requestSubmit && submitter) {
+                            this.$el.requestSubmit(submitter);
+                            return;
+                        }
+
+                        submitter?.click();
                     },
                 }"
                 id="attempt-form"
@@ -286,6 +319,8 @@
                 @keydown.window="blockExamShortcut($event)"
             >
                 @csrf
+                <button type="submit" name="submit_unanswered" value="0" x-ref="completedSubmit" class="hidden" tabindex="-1" aria-hidden="true"></button>
+                <button type="submit" name="submit_unanswered" value="1" x-ref="timeoutSubmit" class="hidden" tabindex="-1" aria-hidden="true"></button>
 
                 <div class="attempt-topbar portal-panel p-3">
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -596,15 +631,21 @@
                         <h3 class="text-lg font-semibold text-gray-950">Submit this exam?</h3>
                         <p class="mt-2 text-sm leading-6 text-gray-600">
                             You have <span class="font-semibold text-gray-900" x-text="unansweredCount()"></span> unanswered question(s).
+                            You can submit now for scoring or review the unanswered questions first.
+                        </p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
                             Once submitted, you cannot edit your answers.
                         </p>
 
                         <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                             <button type="button" class="portal-button-secondary" @click="submitConfirm = false">
-                                Keep Reviewing
+                                Cancel
                             </button>
-                            <button type="submit" class="portal-button-danger" :disabled="submitted">
-                                <span x-show="! submitted">Submit Now</span>
+                            <button type="button" class="portal-button-secondary" @click="reviewUnanswered">
+                                Review Unanswered
+                            </button>
+                            <button type="submit" name="submit_unanswered" value="1" class="portal-button-danger">
+                                <span x-show="! submitted">Submit As-Is</span>
                                 <span x-show="submitted">Submitting...</span>
                             </button>
                         </div>

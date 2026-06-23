@@ -21,10 +21,10 @@ Route::get('/question-images/{filename}', QuestionImageController::class)
     ->name('question-images.show');
 
 Route::get('/dashboard', DashboardRedirectController::class)
-    ->middleware(['auth'])
+    ->middleware(['auth', 'single.session'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'role:admin'])
+Route::middleware(['auth', 'single.session', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -61,7 +61,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('/results/{attempt}', [ResultController::class, 'destroy'])->name('results.destroy');
     });
 
-Route::middleware(['auth', 'role:student'])
+Route::middleware(['auth', 'single.session', 'role:student'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
@@ -76,7 +76,7 @@ Route::middleware(['auth', 'role:student'])
         Route::get('/attempts/{attempt}/result', [StudentExamController::class, 'result'])->name('attempts.result');
     });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'single.session'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });

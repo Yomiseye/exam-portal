@@ -356,6 +356,37 @@ class ExamTakingTest extends TestCase
         $this->assertSame('in_progress', $attempt->fresh()->status);
     }
 
+    public function test_student_can_choose_to_submit_unanswered_questions_as_incorrect(): void
+    {
+        $student = User::factory()->student()->create();
+        $exam = $this->examWithQuestions(questionCount: 2, totalQuestions: 2, passMark: 60);
+        $this->assignExam($student, $exam);
+
+        $this->actingAs($student)
+            ->post(route('student.exams.start', $exam));
+
+        $attempt = Attempt::with('answers.question.options')->firstOrFail();
+        $answer = $attempt->answers->first();
+
+        $this->actingAs($student)
+            ->post(route('student.attempts.submit', $attempt), [
+                'submit_unanswered' => '1',
+                'answers' => [
+                    $answer->question_id => $answer->question->options->firstWhere('is_correct', true)->id,
+                ],
+            ])
+            ->assertRedirect(route('student.attempts.result', $attempt));
+
+        $attempt->refresh();
+        $unanswered = $attempt->answers()->whereKeyNot($answer->id)->firstOrFail();
+
+        $this->assertSame(1, $attempt->score);
+        $this->assertSame(50, $attempt->percentage);
+        $this->assertSame('failed', $attempt->status);
+        $this->assertFalse((bool) $unanswered->is_correct);
+        $this->assertNull($unanswered->selected_option_id);
+    }
+
     public function test_expired_attempt_can_submit_unanswered_questions_as_incorrect(): void
     {
         $student = User::factory()->student()->create();

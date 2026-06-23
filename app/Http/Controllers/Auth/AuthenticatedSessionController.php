@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -27,6 +28,14 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        $activeSessionToken = Str::random(64);
+
+        $request->user()->forceFill([
+            'active_session_token' => $activeSessionToken,
+        ])->save();
+
+        $request->session()->put('active_session_token', $activeSessionToken);
 
         $dashboard = $request->user()->role === 'admin'
             ? route('admin.dashboard', absolute: false)

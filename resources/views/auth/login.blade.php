@@ -13,13 +13,27 @@
         </div>
 
         <!-- Password -->
-        <div class="mt-4">
+        <div class="mt-4" x-data="{ showPassword: false }">
             <x-input-label for="password" :value="__('Password')" />
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
+            <div class="relative mt-1">
+                <x-text-input id="password"
+                                class="block w-full pr-20"
+                                x-bind:type="showPassword ? 'text' : 'password'"
+                                name="password"
+                                required autocomplete="current-password" />
+
+                <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-sm font-semibold text-slate-500 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    x-on:click="showPassword = ! showPassword"
+                    x-bind:aria-label="showPassword ? '{{ __('Hide password') }}' : '{{ __('Show password') }}'"
+                    x-bind:aria-pressed="showPassword.toString()"
+                >
+                    <span x-show="! showPassword">{{ __('Show') }}</span>
+                    <span x-show="showPassword" x-cloak>{{ __('Hide') }}</span>
+                </button>
+            </div>
 
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>

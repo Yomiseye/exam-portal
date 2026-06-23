@@ -238,6 +238,15 @@ class QuestionManagementTest extends TestCase
         Storage::disk('public')->assertExists($question->image_path);
     }
 
+    public function test_question_image_route_serves_public_disk_images(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('question-images/diagram.png', 'image-content');
+
+        $this->get(route('question-images.show', ['filename' => 'diagram.png']))
+            ->assertOk();
+    }
+
     public function test_admin_can_create_question_with_option_image(): void
     {
         Storage::fake('public');

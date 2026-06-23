@@ -4,15 +4,30 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class QuestionImageController extends Controller
 {
-    public function __invoke(string $filename): Response
+    public function __invoke(string $filename): BinaryFileResponse
     {
-        $path = 'question-images/'.basename($filename);
+        $filename = basename($filename);
+        $storagePath = 'question-images/'.$filename;
 
-        abort_unless(Storage::disk('public')->exists($path), 404);
+        if (Storage::disk('public')->exists($storagePath)) {
+            return response()->file(Storage::disk('public')->path($storagePath));
+        }
 
-        return response()->file(Storage::disk('public')->path($path));
+        $fallbackPaths = [
+            public_path('storage/question-images/'.$filename),
+            public_path('question-images/'.$filename),
+        ];
+
+        foreach ($fallbackPaths as $path) {
+            if (is_file($path)) {
+                return response()->file($path);
+            }
+        }
+
+        abort(404);
     }
 }
