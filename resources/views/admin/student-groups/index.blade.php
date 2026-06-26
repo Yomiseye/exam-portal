@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Student Groups
             </h2>
-            <a href="{{ route('admin.student-groups.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+            <a href="{{ route('admin.student-groups.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                <x-icon name="plus" />
                 Create Group
             </a>
         </div>
@@ -27,7 +28,7 @@
             <div class="bg-white p-4 shadow-sm sm:rounded-lg">
                 <form method="GET" action="{{ route('admin.student-groups.index') }}" class="grid gap-4 md:grid-cols-3">
                     <div>
-                        <x-input-label for="search" value="Search" />
+                        <x-input-label for="search" value="Search" icon="search" />
                         <x-text-input
                             id="search"
                             name="search"
@@ -39,7 +40,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="status" value="Status" />
+                        <x-input-label for="status" value="Status" icon="filter" />
                         <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">All statuses</option>
                             <option value="active" @selected(request('status') === 'active')>Active</option>
@@ -48,7 +49,10 @@
                     </div>
 
                     <div class="flex items-end gap-3">
-                        <x-primary-button>Filter</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="filter" />
+                            Filter
+                        </x-primary-button>
                         <a href="{{ route('admin.student-groups.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Reset</a>
                     </div>
                 </form>
@@ -71,20 +75,25 @@
                                         <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
                                             {{ $group->students_count }} student(s)
                                         </span>
-                                        <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $group->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{ $group->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                            <x-icon name="{{ $group->is_active ? 'check-circle' : 'x-circle' }}" class="h-3 w-3" />
                                             {{ $group->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div class="mt-4 flex flex-wrap gap-3 text-sm font-medium">
-                                    <a href="{{ route('admin.student-groups.edit', $group) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                    <a href="{{ route('admin.student-groups.edit', $group) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
+                                        <x-icon name="pencil" class="h-3.5 w-3.5" />
+                                        Edit
+                                    </a>
 
                                     @if ($group->is_active)
                                         <form method="POST" action="{{ route('admin.student-groups.destroy', $group) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this group?')">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this group?')">
+                                                <x-icon name="x-circle" class="h-3.5 w-3.5" />
                                                 Deactivate
                                             </button>
                                         </form>
@@ -92,7 +101,8 @@
                                         <form method="POST" action="{{ route('admin.student-groups.activate', $group) }}">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="text-green-700 hover:text-green-900">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-green-700 hover:text-green-900">
+                                                <x-icon name="check-circle" class="h-3.5 w-3.5" />
                                                 Reactivate
                                             </button>
                                         </form>
@@ -101,7 +111,8 @@
                                     <form method="POST" action="{{ route('admin.student-groups.permanent-destroy', $group) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this group? This only works when it has no students or exam assignments.')">
+                                        <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this group? This only works when it has no students or exam assignments.')">
+                                            <x-icon name="trash" class="h-3.5 w-3.5" />
                                             Delete
                                         </button>
                                     </form>
@@ -117,11 +128,17 @@
                                                 {{ $assignment->available_until->format('M j, Y g:i A') }}
                                             </div>
                                             <div class="mt-2">
-                                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{
                                                     $assignment->isAvailable()
                                                         ? 'bg-green-100 text-green-800'
                                                         : ($assignment->available_from->isFuture() ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700')
                                                 }}">
+                                                    <x-icon
+                                                        :name="$assignment->isAvailable()
+                                                            ? 'check-circle'
+                                                            : ($assignment->available_from->isFuture() ? 'clock' : 'x-circle')"
+                                                        class="h-3 w-3"
+                                                    />
                                                     {{
                                                         $assignment->isAvailable()
                                                             ? 'Available now'
@@ -131,7 +148,12 @@
                                             </div>
                                         </div>
                                     @empty
-                                        <p class="text-sm text-gray-500">No group exams assigned yet.</p>
+                                        <x-empty-state
+                                            class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-6"
+                                            icon="clipboard-list"
+                                            title="No exams assigned"
+                                            message="Assign an exam using the group assignment form."
+                                        />
                                     @endforelse
                                 </div>
                             </div>
@@ -140,7 +162,7 @@
                                 @csrf
 
                                 <div>
-                                    <x-input-label for="group_exam_id_{{ $group->id }}" value="Assign Exam to Group" />
+                                    <x-input-label for="group_exam_id_{{ $group->id }}" value="Assign Exam to Group" icon="clipboard-list" />
                                     <select id="group_exam_id_{{ $group->id }}" name="exam_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         <option value="">Choose exam</option>
                                         @foreach ($exams as $exam)
@@ -151,25 +173,35 @@
 
                                 <div class="grid gap-4 md:grid-cols-2">
                                     <div>
-                                        <x-input-label for="group_available_from_{{ $group->id }}" value="Available From" />
+                                        <x-input-label for="group_available_from_{{ $group->id }}" value="Available From" icon="calendar-days" />
                                         <x-text-input id="group_available_from_{{ $group->id }}" name="available_from" type="datetime-local" class="mt-1 block w-full" />
                                     </div>
 
                                     <div>
-                                        <x-input-label for="group_available_until_{{ $group->id }}" value="Available Until" />
+                                        <x-input-label for="group_available_until_{{ $group->id }}" value="Available Until" icon="calendar-days" />
                                         <x-text-input id="group_available_until_{{ $group->id }}" name="available_until" type="datetime-local" class="mt-1 block w-full" />
                                     </div>
                                 </div>
 
-                                <button type="submit" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                <button type="submit" class="portal-button-primary text-xs uppercase tracking-widest">
+                                    <x-icon name="clipboard-list" />
                                     Save Group Assignment
                                 </button>
                             </form>
                         </div>
                     </div>
                 @empty
-                    <div class="bg-white p-10 text-center shadow-sm sm:rounded-lg">
-                        <p class="text-sm text-gray-500">No student groups have been created yet.</p>
+                    <div class="bg-white shadow-sm sm:rounded-lg">
+                        <x-empty-state
+                            icon="users-round"
+                            title="No student groups yet"
+                            message="Create groups to assign exams to several students at once."
+                        >
+                            <a href="{{ route('admin.student-groups.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                                <x-icon name="plus" />
+                                Create Group
+                            </a>
+                        </x-empty-state>
                     </div>
                 @endforelse
             </div>

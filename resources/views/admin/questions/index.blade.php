@@ -5,10 +5,12 @@
                 Questions
             </h2>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin.questions.import') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50">
+                <a href="{{ route('admin.questions.import') }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                    <x-icon name="upload" />
                     Import Excel
                 </a>
-                <a href="{{ route('admin.questions.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+                <a href="{{ route('admin.questions.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                    <x-icon name="plus" />
                     Create Question
                 </a>
             </div>
@@ -32,7 +34,7 @@
             <div class="mb-6 bg-white p-4 shadow-sm sm:rounded-lg">
                 <form method="GET" action="{{ route('admin.questions.index') }}" class="grid gap-4 md:grid-cols-4">
                     <div>
-                        <x-input-label for="search" value="Search" />
+                        <x-input-label for="search" value="Search" icon="search" />
                         <x-text-input
                             id="search"
                             name="search"
@@ -44,7 +46,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="category_id" value="Category" />
+                        <x-input-label for="category_id" value="Category" icon="tag" />
                         <select id="category_id" name="category_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                             <option value="">All categories</option>
                             @foreach ($categories as $category)
@@ -56,7 +58,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="difficulty" value="Difficulty" />
+                        <x-input-label for="difficulty" value="Difficulty" icon="filter" />
                         <select id="difficulty" name="difficulty" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                             <option value="">All difficulties</option>
                             @foreach (['easy' => 'Easy', 'medium' => 'Medium', 'hard' => 'Hard'] as $value => $label)
@@ -66,7 +68,10 @@
                     </div>
 
                     <div class="flex items-end gap-3">
-                        <x-primary-button>Filter</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="filter" />
+                            Filter
+                        </x-primary-button>
                         <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Reset</a>
                     </div>
                 </form>
@@ -77,7 +82,7 @@
 
                 <div class="grid gap-4 md:grid-cols-[1fr,auto] md:items-end">
                     <div>
-                        <x-input-label for="bulk_action" value="Bulk Action" />
+                        <x-input-label for="bulk_action" value="Bulk Action" icon="check-circle" />
                         <select id="bulk_action" name="action" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Choose action</option>
                             <option value="activate">Activate selected</option>
@@ -88,7 +93,8 @@
                         <x-input-error class="mt-2" :messages="$errors->get('question_ids')" />
                     </div>
 
-                    <button type="submit" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700" onclick="return confirm('Apply this bulk action to the selected questions? Permanent delete will skip questions with exam history.')">
+                    <button type="submit" class="portal-button-primary text-xs uppercase tracking-widest" onclick="return confirm('Apply this bulk action to the selected questions? Permanent delete will skip questions with exam history.')">
+                        <x-icon name="check-circle" />
                         Apply to Selected
                     </button>
                 </div>
@@ -130,11 +136,21 @@
                                     </td>
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-md">
                                         {{ \Illuminate\Support\Str::limit(\App\Support\RichText::plainText($question->question_text), 100) }}
-                                        @if ($question->image_path)
-                                            <div class="mt-1 text-xs font-normal text-gray-500">Has image</div>
-                                        @endif
-                                        @if ($question->explanation_image_path)
-                                            <div class="mt-1 text-xs font-normal text-gray-500">Has explanation image</div>
+                                        @if ($question->image_path || $question->explanation_image_path)
+                                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                                @if ($question->image_path)
+                                                    <span class="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                                                        <x-icon name="image" class="h-3 w-3" />
+                                                        Question image
+                                                    </span>
+                                                @endif
+                                                @if ($question->explanation_image_path)
+                                                    <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                                                        <x-icon name="image" class="h-3 w-3" />
+                                                        Explanation image
+                                                    </span>
+                                                @endif
+                                            </div>
                                         @endif
                                         @if ($question->tags->isNotEmpty())
                                             <div class="mt-2 flex flex-wrap gap-1">
@@ -170,19 +186,27 @@
                                                 <span class="relative inline-flex h-4 w-7 items-center rounded-full {{ $question->is_active ? 'bg-green-600' : 'bg-gray-300' }}">
                                                     <span class="inline-block h-3 w-3 transform rounded-full bg-white transition {{ $question->is_active ? 'translate-x-3.5' : 'translate-x-0.5' }}"></span>
                                                 </span>
+                                                <x-icon name="{{ $question->is_active ? 'check-circle' : 'x-circle' }}" class="h-3.5 w-3.5" />
                                                 {{ $question->is_active ? 'Active' : 'Inactive' }}
                                             </button>
                                         </form>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div class="flex justify-end gap-3">
-                                            <a href="{{ route('admin.questions.preview', $question) }}" class="text-teal-700 hover:text-teal-900">Preview</a>
-                                            <a href="{{ route('admin.questions.edit', $question) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                        <div class="flex justify-end gap-2 text-xs">
+                                            <a href="{{ route('admin.questions.preview', $question) }}" class="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-900">
+                                                <x-icon name="eye" class="h-3.5 w-3.5" />
+                                                Preview
+                                            </a>
+                                            <a href="{{ route('admin.questions.edit', $question) }}" class="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-900">
+                                                <x-icon name="pencil" class="h-3.5 w-3.5" />
+                                                Edit
+                                            </a>
 
                                             <form method="POST" action="{{ route('admin.questions.permanent-destroy', $question) }}">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this question? This only works when it has not been used in an exam attempt.')">
+                                                <button type="submit" class="inline-flex items-center gap-1.5 text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this question? This only works when it has not been used in an exam attempt.')">
+                                                    <x-icon name="trash" class="h-3.5 w-3.5" />
                                                     Delete
                                                 </button>
                                             </form>
@@ -191,8 +215,23 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
-                                        No questions have been created yet.
+                                    <td colspan="8">
+                                        <x-empty-state
+                                            icon="circle-help"
+                                            title="No questions yet"
+                                            message="Create questions manually or import them from Excel."
+                                        >
+                                            <div class="flex flex-wrap justify-center gap-2">
+                                                <a href="{{ route('admin.questions.import') }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                                                    <x-icon name="upload" />
+                                                    Import Excel
+                                                </a>
+                                                <a href="{{ route('admin.questions.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                                                    <x-icon name="plus" />
+                                                    Create Question
+                                                </a>
+                                            </div>
+                                        </x-empty-state>
                                     </td>
                                 </tr>
                             @endforelse

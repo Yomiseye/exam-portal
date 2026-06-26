@@ -74,6 +74,15 @@
                                                         default => 'portal-badge-neutral',
                                                     }
                                                 }}">
+                                                    <x-icon
+                                                        :name="match ($exam->student_status) {
+                                                            'available', 'retake_granted', 'completed' => 'check-circle',
+                                                            'paused', 'in_progress', 'scheduled' => 'clock',
+                                                            'closed' => 'x-circle',
+                                                            default => 'chart-bar',
+                                                        }"
+                                                        class="h-3 w-3"
+                                                    />
                                                     {{
                                                         match ($exam->student_status) {
                                                             'available' => 'Available',
@@ -113,27 +122,34 @@
 
                                         @if (in_array($exam->student_status, ['in_progress', 'paused'], true))
                                             <a href="{{ route('student.attempts.show', $exam->latest_attempt) }}" class="portal-button-primary shrink-0">
+                                                <x-icon name="arrow-right" />
                                                 {{ $exam->student_status === 'paused' ? 'Resume' : 'Continue' }}
                                             </a>
                                         @elseif ($exam->student_status === 'completed')
                                             <a href="{{ route('student.attempts.result', $exam->latest_attempt) }}" class="portal-button-secondary shrink-0">
+                                                <x-icon name="chart-bar" />
                                                 View Result
                                             </a>
                                         @elseif (in_array($exam->student_status, ['scheduled', 'closed'], true))
                                             <span class="portal-button-muted shrink-0">
+                                                <x-icon name="x-circle" />
                                                 Not Available
                                             </span>
                                         @else
                                             <a href="{{ route('student.exams.show', $exam) }}" class="portal-button-primary shrink-0">
+                                                <x-icon name="clipboard-list" />
                                                 {{ $exam->student_status === 'retake_granted' ? 'Retake Exam' : 'View Exam' }}
                                             </a>
                                         @endif
                                     </div>
                                 </div>
                             @empty
-                                <div class="rounded-md border border-dashed border-gray-300 p-8 text-center">
-                                    <p class="text-sm text-gray-500">No active exams are available.</p>
-                                </div>
+                                <x-empty-state
+                                    class="rounded-md border border-dashed border-gray-300 bg-white px-4 py-8"
+                                    icon="clipboard-list"
+                                    title="No active exams"
+                                    message="Available exams will appear here when your admin assigns one."
+                                />
                             @endforelse
                         </div>
                     </div>
@@ -157,7 +173,12 @@
                                     </div>
                                 </a>
                             @empty
-                                <p class="text-sm text-gray-500">No attempts yet.</p>
+                                <x-empty-state
+                                    class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-6"
+                                    icon="chart-bar"
+                                    title="No attempts yet"
+                                    message="Your exam activity will appear here after you start or submit an exam."
+                                />
                             @endforelse
                         </div>
                     </div>

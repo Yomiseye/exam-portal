@@ -26,6 +26,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
     min-height: 2.5rem;
     border-radius: 8px;
     padding: 0.625rem 1rem;
@@ -71,6 +72,10 @@
     border: 1px solid #e2e8f0;
     background: #f1f5f9;
     color: #64748b;
+}
+
+.portal-badge {
+    gap: 0.25rem;
 }
 
 .rich-content :where(p, ul, ol, blockquote, pre, div) {

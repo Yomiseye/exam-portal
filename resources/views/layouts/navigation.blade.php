@@ -13,31 +13,38 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                        <x-icon name="layout-dashboard" />
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
                     @if (Auth::user()->isAdmin())
                         <x-nav-link :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')">
+                            <x-icon name="users" />
                             {{ __('Students') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.student-groups.index')" :active="request()->routeIs('admin.student-groups.*')">
+                            <x-icon name="users-round" />
                             {{ __('Groups') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">
+                            <x-icon name="tag" />
                             {{ __('Categories') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.questions.index')" :active="request()->routeIs('admin.questions.*')">
+                            <x-icon name="circle-help" />
                             {{ __('Questions') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')">
+                            <x-icon name="clipboard-list" />
                             {{ __('Exams') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.results.index')" :active="request()->routeIs('admin.results.*')">
+                            <x-icon name="chart-bar" />
                             {{ __('Results') }}
                         </x-nav-link>
                     @endif
@@ -52,16 +59,17 @@
                             <div>{{ Auth::user()->name }}</div>
 
                             <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
+                                <x-icon name="chevron-down" class="h-4 w-4" />
                             </div>
                         </button>
                     </x-slot>
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
+                            <span class="inline-flex items-center gap-2">
+                                <x-icon name="user" />
+                                {{ __('Profile') }}
+                            </span>
                         </x-dropdown-link>
 
                         <!-- Authentication -->
@@ -71,7 +79,10 @@
                             <x-dropdown-link :href="route('logout')"
                                     onclick="event.preventDefault();
                                                 this.closest('form').submit();">
-                                {{ __('Log Out') }}
+                                <span class="inline-flex items-center gap-2">
+                                    <x-icon name="log-out" />
+                                    {{ __('Log Out') }}
+                                </span>
                             </x-dropdown-link>
                         </form>
                     </x-slot>
@@ -94,32 +105,53 @@
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
+                <span class="inline-flex items-center gap-2">
+                    <x-icon name="layout-dashboard" />
+                    {{ __('Dashboard') }}
+                </span>
             </x-responsive-nav-link>
 
             @if (Auth::user()->isAdmin())
                 <x-responsive-nav-link :href="route('admin.students.index')" :active="request()->routeIs('admin.students.*')">
-                    {{ __('Students') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="users" />
+                        {{ __('Students') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.student-groups.index')" :active="request()->routeIs('admin.student-groups.*')">
-                    {{ __('Groups') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="users-round" />
+                        {{ __('Groups') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">
-                    {{ __('Categories') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="tag" />
+                        {{ __('Categories') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.questions.index')" :active="request()->routeIs('admin.questions.*')">
-                    {{ __('Questions') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="circle-help" />
+                        {{ __('Questions') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')">
-                    {{ __('Exams') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="clipboard-list" />
+                        {{ __('Exams') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.results.index')" :active="request()->routeIs('admin.results.*')">
-                    {{ __('Results') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="chart-bar" />
+                        {{ __('Results') }}
+                    </span>
                 </x-responsive-nav-link>
             @endif
         </div>
@@ -133,7 +165,10 @@
 
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="user" />
+                        {{ __('Profile') }}
+                    </span>
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
@@ -143,7 +178,10 @@
                     <x-responsive-nav-link :href="route('logout')"
                             onclick="event.preventDefault();
                                         this.closest('form').submit();">
-                        {{ __('Log Out') }}
+                        <span class="inline-flex items-center gap-2">
+                            <x-icon name="log-out" />
+                            {{ __('Log Out') }}
+                        </span>
                     </x-responsive-nav-link>
                 </form>
             </div>

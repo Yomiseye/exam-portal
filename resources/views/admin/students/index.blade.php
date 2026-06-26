@@ -5,10 +5,12 @@
                 Students
             </h2>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin.students.import') }}" class="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
+                <a href="{{ route('admin.students.import') }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                    <x-icon name="upload" />
                     Import Excel
                 </a>
-                <a href="{{ route('admin.students.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                <a href="{{ route('admin.students.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                    <x-icon name="user-plus" />
                     Register Student
                 </a>
             </div>
@@ -32,7 +34,7 @@
             <div class="bg-white p-4 shadow-sm sm:rounded-lg">
                 <form method="GET" action="{{ route('admin.students.index') }}" class="grid gap-4 md:grid-cols-4">
                     <div>
-                        <x-input-label for="search" value="Search" />
+                        <x-input-label for="search" value="Search" icon="search" />
                         <x-text-input
                             id="search"
                             name="search"
@@ -44,7 +46,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="student_group_id" value="Group" />
+                        <x-input-label for="student_group_id" value="Group" icon="users-round" />
                         <select id="student_group_id" name="student_group_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">All groups</option>
                             @foreach ($groups as $group)
@@ -56,7 +58,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="status" value="Status" />
+                        <x-input-label for="status" value="Status" icon="filter" />
                         <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">All statuses</option>
                             <option value="active" @selected(request('status') === 'active')>Active</option>
@@ -65,7 +67,10 @@
                     </div>
 
                     <div class="flex items-end gap-3">
-                        <x-primary-button>Filter</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="filter" />
+                            Filter
+                        </x-primary-button>
                         <a href="{{ route('admin.students.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Reset</a>
                     </div>
                 </form>
@@ -84,7 +89,8 @@
                                             <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
                                                 {{ $student->studentGroup?->name ?? 'No group' }}
                                             </span>
-                                            <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $student->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                            <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{ $student->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                                <x-icon name="{{ $student->is_active ? 'check-circle' : 'x-circle' }}" class="h-3 w-3" />
                                                 {{ $student->is_active ? 'Active' : 'Inactive' }}
                                             </span>
                                         </div>
@@ -102,7 +108,8 @@
                                         <form method="POST" action="{{ route('admin.students.remove-group', $student) }}">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="text-indigo-600 hover:text-indigo-900">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
+                                                <x-icon name="users-round" class="h-3.5 w-3.5" />
                                                 Remove from group
                                             </button>
                                         </form>
@@ -112,7 +119,8 @@
                                         <form method="POST" action="{{ route('admin.students.deactivate', $student) }}">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this student?')">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this student?')">
+                                                <x-icon name="x-circle" class="h-3.5 w-3.5" />
                                                 Deactivate
                                             </button>
                                         </form>
@@ -120,7 +128,8 @@
                                         <form method="POST" action="{{ route('admin.students.activate', $student) }}">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="text-green-700 hover:text-green-900">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-green-700 hover:text-green-900">
+                                                <x-icon name="check-circle" class="h-3.5 w-3.5" />
                                                 Reactivate
                                             </button>
                                         </form>
@@ -129,7 +138,8 @@
                                     <form method="POST" action="{{ route('admin.students.destroy', $student) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this student? This is only allowed if the student has no exam history.')">
+                                        <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this student? This is only allowed if the student has no exam history.')">
+                                            <x-icon name="trash" class="h-3.5 w-3.5" />
                                             Permanent delete
                                         </button>
                                     </form>
@@ -138,7 +148,8 @@
                                         <form method="POST" action="{{ route('admin.students.clear-history', $student) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-amber-700 hover:text-amber-900" onclick="return confirm('Clear this student exam history? The student account will remain, but attempts and retake permissions will be removed.')">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900" onclick="return confirm('Clear this student exam history? The student account will remain, but attempts and retake permissions will be removed.')">
+                                                <x-icon name="trash" class="h-3.5 w-3.5" />
                                                 Clear history
                                             </button>
                                         </form>
@@ -155,11 +166,17 @@
                                                 {{ $assignment->available_until->format('M j, Y g:i A') }}
                                             </div>
                                             <div class="mt-2">
-                                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{
                                                     $assignment->isAvailable()
                                                         ? 'bg-green-100 text-green-800'
                                                         : ($assignment->available_from->isFuture() ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700')
                                                 }}">
+                                                    <x-icon
+                                                        :name="$assignment->isAvailable()
+                                                            ? 'check-circle'
+                                                            : ($assignment->available_from->isFuture() ? 'clock' : 'x-circle')"
+                                                        class="h-3 w-3"
+                                                    />
                                                     {{
                                                         $assignment->isAvailable()
                                                             ? 'Available now'
@@ -169,7 +186,12 @@
                                             </div>
                                         </div>
                                     @empty
-                                        <p class="text-sm text-gray-500">No exams assigned yet.</p>
+                                        <x-empty-state
+                                            class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-6"
+                                            icon="clipboard-list"
+                                            title="No exams assigned"
+                                            message="Assign an exam using the form on this student card."
+                                        />
                                     @endforelse
                                 </div>
                             </div>
@@ -180,7 +202,7 @@
                                     @method('PATCH')
 
                                     <div>
-                                        <x-input-label for="student_group_{{ $student->id }}" value="Update Group" />
+                                        <x-input-label for="student_group_{{ $student->id }}" value="Update Group" icon="users-round" />
                                         <select id="student_group_{{ $student->id }}" name="student_group_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                             <option value="">No group</option>
                                             @foreach ($groups as $group)
@@ -191,7 +213,8 @@
                                         </select>
                                     </div>
 
-                                    <button type="submit" class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-white">
+                                    <button type="submit" class="portal-button-secondary text-xs uppercase tracking-widest">
+                                        <x-icon name="save" />
                                         Save Group
                                     </button>
                                 </form>
@@ -200,7 +223,7 @@
                                     @csrf
 
                                     <div>
-                                        <x-input-label for="exam_id_{{ $student->id }}" value="Assign Exam" />
+                                        <x-input-label for="exam_id_{{ $student->id }}" value="Assign Exam" icon="clipboard-list" />
                                         <select id="exam_id_{{ $student->id }}" name="exam_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                             <option value="">Choose exam</option>
                                             @foreach ($exams as $exam)
@@ -211,17 +234,18 @@
 
                                     <div class="grid gap-4 md:grid-cols-2">
                                         <div>
-                                            <x-input-label for="available_from_{{ $student->id }}" value="Available From" />
+                                            <x-input-label for="available_from_{{ $student->id }}" value="Available From" icon="calendar-days" />
                                             <x-text-input id="available_from_{{ $student->id }}" name="available_from" type="datetime-local" class="mt-1 block w-full" />
                                         </div>
 
                                         <div>
-                                            <x-input-label for="available_until_{{ $student->id }}" value="Available Until" />
+                                            <x-input-label for="available_until_{{ $student->id }}" value="Available Until" icon="calendar-days" />
                                             <x-text-input id="available_until_{{ $student->id }}" name="available_until" type="datetime-local" class="mt-1 block w-full" />
                                         </div>
                                     </div>
 
-                                    <button type="submit" class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                                    <button type="submit" class="portal-button-primary text-xs uppercase tracking-widest">
+                                        <x-icon name="clipboard-list" />
                                         Save Assignment
                                     </button>
                                 </form>
@@ -229,8 +253,23 @@
                         </div>
                     </div>
                 @empty
-                    <div class="bg-white p-10 text-center shadow-sm sm:rounded-lg">
-                        <p class="text-sm text-gray-500">No students have been registered yet.</p>
+                    <div class="bg-white shadow-sm sm:rounded-lg">
+                        <x-empty-state
+                            icon="users"
+                            title="No students yet"
+                            message="Register students manually or import an Excel sheet."
+                        >
+                            <div class="flex flex-wrap justify-center gap-2">
+                                <a href="{{ route('admin.students.import') }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                                    <x-icon name="upload" />
+                                    Import Excel
+                                </a>
+                                <a href="{{ route('admin.students.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                                    <x-icon name="user-plus" />
+                                    Register Student
+                                </a>
+                            </div>
+                        </x-empty-state>
                     </div>
                 @endforelse
             </div>

@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Create Group
             </h2>
-            <a href="{{ route('admin.student-groups.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <a href="{{ route('admin.student-groups.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <x-icon name="users-round" class="h-3.5 w-3.5" />
                 Back to Groups
             </a>
         </div>
@@ -19,7 +20,10 @@
                     @include('admin.student-groups.partials.form', ['group' => $group])
 
                     <div class="flex justify-end">
-                        <x-primary-button>Create Group</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="plus" />
+                            Create Group
+                        </x-primary-button>
                     </div>
                 </form>
             </div>

@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Import Students
             </h2>
-            <a href="{{ route('admin.students.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <a href="{{ route('admin.students.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <x-icon name="users" class="h-3.5 w-3.5" />
                 Back to Students
             </a>
         </div>
@@ -24,7 +25,7 @@
                         </div>
 
                         <div>
-                            <x-input-label for="sheet_index" value="Worksheet" />
+                            <x-input-label for="sheet_index" value="Worksheet" icon="file-text" />
                             <select id="sheet_index" name="sheet_index" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">Choose worksheet</option>
                                 @foreach ($sheets as $sheet)
@@ -40,7 +41,7 @@
                         </div>
                     @else
                         <div>
-                            <x-input-label for="students_file" value="Students Excel File" />
+                            <x-input-label for="students_file" value="Students Excel File" icon="upload" />
                             <input
                                 id="students_file"
                                 name="students_file"
@@ -55,7 +56,10 @@
                     @endif
 
                     <div class="rounded-md bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Excel Columns</h3>
+                        <h3 class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                            <x-icon name="file-text" class="h-3.5 w-3.5 text-gray-400" />
+                            Excel Columns
+                        </h3>
                         <div class="mt-3 overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead>
@@ -82,7 +86,10 @@
                     </div>
 
                     <div class="flex justify-end">
-                        <x-primary-button>{{ ! empty($sheets) ? 'Import Selected Sheet' : 'Import Students' }}</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="upload" />
+                            {{ ! empty($sheets) ? 'Import Selected Sheet' : 'Import Students' }}
+                        </x-primary-button>
                     </div>
                 </form>
             </div>

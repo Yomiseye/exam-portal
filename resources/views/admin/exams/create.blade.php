@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Create Exam
             </h2>
-            <a href="{{ route('admin.exams.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <a href="{{ route('admin.exams.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <x-icon name="clipboard-list" class="h-3.5 w-3.5" />
                 Back to exams
             </a>
         </div>
@@ -22,7 +23,10 @@
                     ])
 
                     <div class="flex justify-end">
-                        <x-primary-button>Create Exam</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="plus" />
+                            Create Exam
+                        </x-primary-button>
                     </div>
                 </form>
             </div>

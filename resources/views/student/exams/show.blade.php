@@ -124,18 +124,22 @@
                         @csrf
                         @if ($activeAttempt)
                             <a href="{{ route('student.attempts.show', $activeAttempt) }}" class="portal-button-primary w-full">
+                                <x-icon name="arrow-right" />
                                 Continue Attempt
                             </a>
                         @elseif (! $assignment->isAvailable())
                             <button type="button" disabled class="portal-button-muted w-full">
+                                <x-icon name="x-circle" />
                                 Not Available
                             </button>
                         @elseif ($latestCompletedAttempt && ! $unusedRetakePermission)
                             <a href="{{ route('student.attempts.result', $latestCompletedAttempt) }}" class="portal-button-secondary w-full">
+                                <x-icon name="chart-bar" />
                                 View Result
                             </a>
                         @else
                             <button type="submit" class="portal-button-primary w-full" onclick="return confirm('Start this timed exam now?')">
+                                <x-icon name="clipboard-list" />
                                 {{ $unusedRetakePermission ? 'Start Retake' : 'Start Exam' }}
                             </button>
                         @endif

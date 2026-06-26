@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Categories
             </h2>
-            <a href="{{ route('admin.categories.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+            <a href="{{ route('admin.categories.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                <x-icon name="plus" />
                 Create Category
             </a>
         </div>
@@ -27,7 +28,7 @@
             <div class="mb-6 bg-white p-4 shadow-sm sm:rounded-lg">
                 <form method="GET" action="{{ route('admin.categories.index') }}" class="grid gap-4 md:grid-cols-3">
                     <div>
-                        <x-input-label for="search" value="Search" />
+                        <x-input-label for="search" value="Search" icon="search" />
                         <x-text-input
                             id="search"
                             name="search"
@@ -39,7 +40,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="status" value="Status" />
+                        <x-input-label for="status" value="Status" icon="filter" />
                         <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">All statuses</option>
                             <option value="active" @selected(request('status') === 'active')>Active</option>
@@ -48,7 +49,10 @@
                     </div>
 
                     <div class="flex items-end gap-3">
-                        <x-primary-button>Filter</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="filter" />
+                            Filter
+                        </x-primary-button>
                         <a href="{{ route('admin.categories.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Reset</a>
                     </div>
                 </form>
@@ -79,18 +83,23 @@
                                         {{ $category->description ?: 'No description' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $category->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $category->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                            <x-icon name="{{ $category->is_active ? 'check-circle' : 'x-circle' }}" class="h-3 w-3" />
                                             {{ $category->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ route('admin.categories.edit', $category) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                        <a href="{{ route('admin.categories.edit', $category) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
+                                            <x-icon name="pencil" class="h-3.5 w-3.5" />
+                                            Edit
+                                        </a>
 
                                         @if ($category->is_active)
                                             <form method="POST" action="{{ route('admin.categories.destroy', $category) }}" class="inline ms-4">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this category?')">
+                                                <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this category?')">
+                                                    <x-icon name="x-circle" class="h-3.5 w-3.5" />
                                                     Deactivate
                                                 </button>
                                             </form>
@@ -99,7 +108,8 @@
                                         <form method="POST" action="{{ route('admin.categories.permanent-destroy', $category) }}" class="inline ms-4">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this category? This only works when it has no subcategories, questions, or exams attached.')">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this category? This only works when it has no subcategories, questions, or exams attached.')">
+                                                <x-icon name="trash" class="h-3.5 w-3.5" />
                                                 Delete
                                             </button>
                                         </form>
@@ -107,8 +117,17 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">
-                                        No categories have been created yet.
+                                    <td colspan="5">
+                                        <x-empty-state
+                                            icon="tag"
+                                            title="No categories yet"
+                                            message="Create a category to organize questions and exams."
+                                        >
+                                            <a href="{{ route('admin.categories.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                                                <x-icon name="plus" />
+                                                Create Category
+                                            </a>
+                                        </x-empty-state>
                                     </td>
                                 </tr>
                             @endforelse

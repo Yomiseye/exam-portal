@@ -21,7 +21,7 @@
 
             <form method="GET" action="{{ route('admin.results.index') }}" class="mb-6 grid gap-4 rounded-md bg-white p-4 shadow-sm md:grid-cols-[1fr,1fr,1fr,auto]">
                 <div>
-                    <x-input-label for="search" value="Search" />
+                    <x-input-label for="search" value="Search" icon="search" />
                     <x-text-input
                         id="search"
                         name="search"
@@ -33,7 +33,7 @@
                 </div>
 
                 <div>
-                    <x-input-label for="exam_id" value="Exam" />
+                    <x-input-label for="exam_id" value="Exam" icon="clipboard-list" />
                     <select id="exam_id" name="exam_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All exams</option>
                         @foreach ($exams as $exam)
@@ -45,7 +45,7 @@
                 </div>
 
                 <div>
-                    <x-input-label for="status" value="Status" />
+                    <x-input-label for="status" value="Status" icon="filter" />
                     <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All statuses</option>
                         @foreach (['in_progress' => 'In Progress', 'passed' => 'Passed', 'failed' => 'Failed'] as $value => $label)
@@ -55,11 +55,13 @@
                 </div>
 
                 <div class="flex items-end gap-3">
-                    <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700">
+                    <button type="submit" class="portal-button-primary text-xs uppercase tracking-widest">
+                        <x-icon name="filter" />
                         Filter
                     </button>
 
-                    <a href="{{ route('admin.results.index') }}" class="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50">
+                    <a href="{{ route('admin.results.index') }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                        <x-icon name="rotate-ccw" />
                         Reset
                     </a>
                 </div>
@@ -77,9 +79,10 @@
 
                     <button
                         type="submit"
-                        class="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-red-500"
+                        class="portal-button-danger text-xs uppercase tracking-widest"
                         onclick="return confirm('Clear the selected attempt history records? Student accounts will remain.')"
                     >
+                        <x-icon name="trash" />
                         Clear Selected History
                     </button>
                 </div>
@@ -132,13 +135,21 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {{
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{
                                             match ($attempt->status) {
                                                 'passed' => 'bg-green-100 text-green-800',
                                                 'failed' => 'bg-red-100 text-red-800',
                                                 default => 'bg-yellow-100 text-yellow-800',
                                             }
                                         }}">
+                                            <x-icon
+                                                :name="match ($attempt->status) {
+                                                    'passed' => 'check-circle',
+                                                    'failed' => 'x-circle',
+                                                    default => 'clock',
+                                                }"
+                                                class="h-3 w-3"
+                                            />
                                             {{ str_replace('_', ' ', ucfirst($attempt->status)) }}
                                         </span>
                                     </td>
@@ -150,26 +161,37 @@
                                                 ->contains(fn ($permission) => $permission->exam_id === $attempt->exam_id && $permission->used_at === null);
                                         @endphp
 
-                                        <div class="flex justify-end gap-3">
-                                            <a href="{{ route('admin.results.show', $attempt) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                        <div class="flex justify-end gap-2 text-xs">
+                                            <a href="{{ route('admin.results.show', $attempt) }}" class="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-900">
+                                                <x-icon name="eye" class="h-3.5 w-3.5" />
+                                                View
+                                            </a>
 
                                             @if ($attempt->status !== 'in_progress' && ! $hasUnusedRetake)
                                                 <form method="POST" action="{{ route('admin.results.retake', $attempt) }}">
                                                     @csrf
-                                                    <button type="submit" class="text-green-700 hover:text-green-900">
+                                                    <button type="submit" class="inline-flex items-center gap-1.5 text-green-700 hover:text-green-900">
+                                                        <x-icon name="rotate-ccw" class="h-3.5 w-3.5" />
                                                         Grant retake
                                                     </button>
                                                 </form>
                                             @elseif ($hasUnusedRetake)
-                                                <span class="text-gray-400">Retake granted</span>
+                                                <span class="inline-flex items-center gap-1.5 text-gray-400">
+                                                    <x-icon name="check-circle" class="h-3.5 w-3.5" />
+                                                    Retake granted
+                                                </span>
                                             @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
-                                        No attempts found.
+                                    <td colspan="8">
+                                        <x-empty-state
+                                            icon="chart-bar"
+                                            title="No attempts found"
+                                            message="Results will appear here once students submit exams, or when your filters match existing attempts."
+                                        />
                                     </td>
                                 </tr>
                             @endforelse

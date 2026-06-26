@@ -5,7 +5,7 @@
 @endphp
 
 <div>
-    <x-input-label for="title" value="Title" />
+    <x-input-label for="title" value="Title" icon="clipboard-list" />
     <x-text-input
         id="title"
         name="title"
@@ -19,7 +19,7 @@
 </div>
 
 <div>
-    <x-input-label for="description" value="Description" />
+    <x-input-label for="description" value="Description" icon="file-text" />
     <textarea
         id="description"
         name="description"
@@ -31,7 +31,7 @@
 
 <div class="grid gap-6 md:grid-cols-3">
     <div>
-        <x-input-label for="duration_minutes" value="Duration (minutes)" />
+        <x-input-label for="duration_minutes" value="Duration (minutes)" icon="timer" />
         <x-text-input
             id="duration_minutes"
             name="duration_minutes"
@@ -45,7 +45,7 @@
     </div>
 
     <div>
-        <x-input-label for="total_questions" value="Total Questions" />
+        <x-input-label for="total_questions" value="Total Questions" icon="circle-help" />
         <x-text-input
             id="total_questions"
             name="total_questions"
@@ -59,7 +59,7 @@
     </div>
 
     <div>
-        <x-input-label for="pass_mark" value="Pass Mark (%)" />
+        <x-input-label for="pass_mark" value="Pass Mark (%)" icon="chart-bar" />
         <x-text-input
             id="pass_mark"
             name="pass_mark"
@@ -75,7 +75,7 @@
 </div>
 
 <div>
-    <x-input-label value="Categories" />
+    <x-input-label value="Categories" icon="tag" />
     <div class="mt-3 grid gap-3 md:grid-cols-2">
         @forelse ($categories as $category)
             <label class="flex items-start rounded-md border border-gray-200 p-3">
@@ -94,7 +94,12 @@
                 </span>
             </label>
         @empty
-            <p class="text-sm text-gray-500">Create an active category before creating an exam.</p>
+            <x-empty-state
+                class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-6"
+                icon="tag"
+                title="No active categories"
+                message="Create an active category before creating an exam."
+            />
         @endforelse
     </div>
     <x-input-error class="mt-2" :messages="$errors->get('category_ids')" />

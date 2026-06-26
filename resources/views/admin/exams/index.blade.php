@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Exams
             </h2>
-            <a href="{{ route('admin.exams.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+            <a href="{{ route('admin.exams.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                <x-icon name="plus" />
                 Create Exam
             </a>
         </div>
@@ -66,18 +67,23 @@
                                         <div>{{ $exam->allow_pause ? 'Pause allowed' : 'Pause disabled' }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $exam->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $exam->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                            <x-icon name="{{ $exam->is_active ? 'check-circle' : 'x-circle' }}" class="h-3 w-3" />
                                             {{ $exam->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ route('admin.exams.edit', $exam) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                        <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
+                                            <x-icon name="pencil" class="h-3.5 w-3.5" />
+                                            Edit
+                                        </a>
 
                                         @if ($exam->is_active)
                                             <form method="POST" action="{{ route('admin.exams.destroy', $exam) }}" class="inline ms-4">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this exam?')">
+                                                <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-900" onclick="return confirm('Deactivate this exam?')">
+                                                    <x-icon name="x-circle" class="h-3.5 w-3.5" />
                                                     Deactivate
                                                 </button>
                                             </form>
@@ -86,7 +92,8 @@
                                         <form method="POST" action="{{ route('admin.exams.permanent-destroy', $exam) }}" class="inline ms-4">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this exam? This only works when it has no attempt history.')">
+                                            <button type="submit" class="inline-flex items-center gap-1.5 text-xs text-red-700 hover:text-red-950" onclick="return confirm('Permanently delete this exam? This only works when it has no attempt history.')">
+                                                <x-icon name="trash" class="h-3.5 w-3.5" />
                                                 Delete
                                             </button>
                                         </form>
@@ -94,8 +101,17 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
-                                        No exams have been created yet.
+                                    <td colspan="8">
+                                        <x-empty-state
+                                            icon="clipboard-list"
+                                            title="No exams yet"
+                                            message="Create an exam after your categories and questions are ready."
+                                        >
+                                            <a href="{{ route('admin.exams.create') }}" class="portal-button-primary text-xs uppercase tracking-widest">
+                                                <x-icon name="plus" />
+                                                Create Exam
+                                            </a>
+                                        </x-empty-state>
                                     </td>
                                 </tr>
                             @endforelse

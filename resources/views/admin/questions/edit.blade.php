@@ -5,10 +5,12 @@
                 Edit Question
             </h2>
             <div class="flex items-center gap-3">
-                <a href="{{ route('admin.questions.preview', $question) }}" class="text-sm font-medium text-teal-700 hover:text-teal-900">
+                <a href="{{ route('admin.questions.preview', $question) }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:text-teal-900">
+                    <x-icon name="eye" class="h-3.5 w-3.5" />
                     Preview
                 </a>
-                <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <a href="{{ route('admin.questions.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                    <x-icon name="circle-help" class="h-3.5 w-3.5" />
                     Back to questions
                 </a>
             </div>
@@ -28,7 +30,10 @@
                     ])
 
                     <div class="flex justify-end">
-                        <x-primary-button>Save Changes</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="save" />
+                            Save Changes
+                        </x-primary-button>
                     </div>
                 </form>
             </div>

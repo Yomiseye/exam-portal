@@ -188,7 +188,7 @@
 >
 <div class="grid gap-6 md:grid-cols-2">
     <div>
-        <x-input-label for="parent_category_id" value="Category" />
+        <x-input-label for="parent_category_id" value="Category" icon="tag" />
         <select
             id="parent_category_id"
             name="parent_category_id"
@@ -204,7 +204,7 @@
         <x-input-error class="mt-2" :messages="$errors->get('parent_category_id')" />
 
         <div class="mt-3">
-            <x-input-label for="new_category_name" value="Or Add New Category" />
+            <x-input-label for="new_category_name" value="Or Add New Category" icon="plus" />
             <x-text-input
                 id="new_category_name"
                 name="new_category_name"
@@ -217,7 +217,7 @@
     </div>
 
     <div>
-        <x-input-label for="subcategory_id" value="Subcategory" />
+        <x-input-label for="subcategory_id" value="Subcategory" icon="tag" />
         <select
             id="subcategory_id"
             name="subcategory_id"
@@ -232,7 +232,7 @@
         <x-input-error class="mt-2" :messages="$errors->get('subcategory_id')" />
 
         <div class="mt-3">
-            <x-input-label for="new_subcategory_name" value="Or Add New Subcategory" />
+            <x-input-label for="new_subcategory_name" value="Or Add New Subcategory" icon="plus" />
             <x-text-input
                 id="new_subcategory_name"
                 name="new_subcategory_name"
@@ -247,7 +247,7 @@
 
 <div class="grid gap-6 md:grid-cols-2">
     <div>
-        <x-input-label for="question_type" value="Question Type" />
+        <x-input-label for="question_type" value="Question Type" icon="circle-help" />
         <select id="question_type" name="question_type" x-model="questionType" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
             @foreach (\App\Models\Question::TYPES as $value => $label)
                 <option value="{{ $value }}" @selected($questionType === $value)>{{ $label }}</option>
@@ -257,7 +257,7 @@
     </div>
 
     <div>
-        <x-input-label for="difficulty" value="Difficulty" />
+        <x-input-label for="difficulty" value="Difficulty" icon="filter" />
         <select id="difficulty" name="difficulty" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
             @foreach (['easy' => 'Easy', 'medium' => 'Medium', 'hard' => 'Hard'] as $value => $label)
                 <option value="{{ $value }}" @selected(old('difficulty', $question?->difficulty ?? 'easy') === $value)>
@@ -270,7 +270,7 @@
 </div>
 
 <div>
-    <x-input-label for="question_text" value="Question" />
+    <x-input-label for="question_text" value="Question" icon="circle-help" />
     <input type="hidden" id="question_text" name="question_text" x-model="questionText">
     <div class="mt-1 rich-editor-shell">
         <div class="rich-editor-toolbar" aria-label="Question formatting toolbar">
@@ -299,7 +299,7 @@
 </div>
 
 <div>
-    <x-input-label for="image" value="Question Image" />
+    <x-input-label for="image" value="Question Image" icon="image" />
 
     @if ($question?->image_path)
         <div class="mt-2 rounded-md border border-gray-200 p-3">
@@ -318,7 +318,10 @@
                     @checked(old('remove_image'))
                     class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                 >
-                <span class="ms-2">Remove current image</span>
+                <span class="ms-2 inline-flex items-center gap-1.5">
+                    <x-icon name="trash" class="h-3.5 w-3.5 text-gray-400" />
+                    Remove current image
+                </span>
             </label>
         </div>
     @endif
@@ -336,7 +339,7 @@
 </div>
 
 <div>
-    <x-input-label for="tags" value="Tags" />
+    <x-input-label for="tags" value="Tags" icon="tag" />
     <x-text-input
         id="tags"
         name="tags"
@@ -352,6 +355,7 @@
 <div class="rounded-md border border-gray-200 bg-gray-50 p-4">
     <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold text-gray-900" @click="explanationOpen = ! explanationOpen">
         <span x-text="explanationOpen ? '-' : '+'"></span>
+        <x-icon name="file-text" class="h-3.5 w-3.5 text-gray-400" />
         Add Explanation
     </button>
 
@@ -384,7 +388,7 @@
         </div>
 
         <div>
-            <x-input-label for="explanation_image" value="Explanation Image" />
+            <x-input-label for="explanation_image" value="Explanation Image" icon="image" />
 
     @if ($question?->explanation_image_path)
         <div class="mt-2 rounded-md border border-gray-200 bg-white p-3">
@@ -403,7 +407,10 @@
                     @checked(old('remove_explanation_image'))
                     class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                 >
-                <span class="ms-2">Remove current explanation image</span>
+                <span class="ms-2 inline-flex items-center gap-1.5">
+                    <x-icon name="trash" class="h-3.5 w-3.5 text-gray-400" />
+                    Remove current explanation image
+                </span>
             </label>
         </div>
     @endif
@@ -424,7 +431,7 @@
 
 <div>
     <div class="flex items-center justify-between">
-        <x-input-label value="Options" />
+        <x-input-label value="Options" icon="check-circle" />
         <p class="text-sm text-gray-500" x-text="questionType === 'multiple_choice' ? 'Select every correct answer.' : (questionType === 'matching' ? 'Enter matching pairs.' : 'Select one correct answer.')"></p>
     </div>
 
@@ -500,7 +507,10 @@
                     <div class="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Option Image</div>
+                                <div class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <x-icon name="image" class="h-3.5 w-3.5" />
+                                    Option Image
+                                </div>
                                 <p class="mt-1 text-xs text-gray-500">Optional JPG, PNG, or WebP. Maximum size: 2MB.</p>
                             </div>
 
@@ -512,7 +522,10 @@
                                         value="1"
                                         class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                                     >
-                                    <span class="ms-2">Remove image</span>
+                                    <span class="ms-2 inline-flex items-center gap-1.5">
+                                        <x-icon name="trash" class="h-3.5 w-3.5 text-gray-400" />
+                                        Remove image
+                                    </span>
                                 </label>
                             </template>
                         </div>
@@ -566,6 +579,9 @@
         @checked(old('is_active', $question?->is_active ?? true))
         class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
     >
-    <label for="is_active" class="ms-2 text-sm text-gray-600">Active</label>
+    <label for="is_active" class="ms-2 inline-flex items-center gap-1.5 text-sm text-gray-600">
+        <x-icon name="check-circle" class="h-3.5 w-3.5 text-gray-400" />
+        Active
+    </label>
     <x-input-error class="mt-2" :messages="$errors->get('is_active')" />
 </div>

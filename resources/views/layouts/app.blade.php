@@ -220,6 +220,7 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                gap: 0.5rem;
                 min-height: 2.5rem;
                 border-radius: 8px;
                 padding: 0.625rem 1rem;
@@ -270,6 +271,7 @@
             .portal-badge {
                 display: inline-flex;
                 align-items: center;
+                gap: 0.25rem;
                 width: fit-content;
                 border-radius: 999px;
                 padding: 0.25rem 0.625rem;

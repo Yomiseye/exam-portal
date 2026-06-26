@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Edit Category
             </h2>
-            <a href="{{ route('admin.categories.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <a href="{{ route('admin.categories.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <x-icon name="tag" class="h-3.5 w-3.5" />
                 Back to categories
             </a>
         </div>
@@ -20,7 +21,10 @@
                     @include('admin.categories.partials.form', ['category' => $category, 'parentCategories' => $parentCategories])
 
                     <div class="flex justify-end">
-                        <x-primary-button>Save Changes</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="save" />
+                            Save Changes
+                        </x-primary-button>
                     </div>
                 </form>
             </div>

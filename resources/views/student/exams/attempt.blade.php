@@ -350,6 +350,7 @@
                                     class="portal-button-secondary"
                                     onclick="return confirm('Pause this exam and return to your dashboard?')"
                                 >
+                                    <x-icon name="pause" />
                                     Pause
                                 </button>
                             @endif
@@ -359,6 +360,7 @@
                                 class="portal-button-danger"
                                 @click="confirmSubmit"
                             >
+                                <x-icon name="check-circle" />
                                 Submit Exam
                             </button>
                         </div>
@@ -391,6 +393,7 @@
                             x-show="fullscreenSupported && ! fullscreenActive"
                             @click="requestSecureFullscreen"
                         >
+                            <x-icon name="maximize" />
                             Enter Fullscreen
                         </button>
 
@@ -560,6 +563,7 @@
                                 :class="current === 0 ? 'opacity-40' : ''"
                                 @click="previous"
                             >
+                                <x-icon name="arrow-left" />
                                 Previous
                             </button>
 
@@ -573,6 +577,7 @@
                                 x-show="current < total - 1"
                                 @click="next"
                             >
+                                <x-icon name="arrow-right" />
                                 Next Question
                             </button>
 
@@ -582,6 +587,7 @@
                                 x-show="current === total - 1"
                                 @click="confirmSubmit"
                             >
+                                <x-icon name="check-circle" />
                                 Finish Exam
                             </button>
                         </div>
@@ -639,12 +645,15 @@
 
                         <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                             <button type="button" class="portal-button-secondary" @click="submitConfirm = false">
+                                <x-icon name="x-circle" />
                                 Cancel
                             </button>
                             <button type="button" class="portal-button-secondary" @click="reviewUnanswered">
+                                <x-icon name="circle-help" />
                                 Review Unanswered
                             </button>
                             <button type="submit" name="submit_unanswered" value="1" class="portal-button-danger">
+                                <x-icon name="check-circle" />
                                 <span x-show="! submitted">Submit As-Is</span>
                                 <span x-show="submitted">Submitting...</span>
                             </button>

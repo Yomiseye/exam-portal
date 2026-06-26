@@ -4,7 +4,8 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Import Questions
             </h2>
-            <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <a href="{{ route('admin.questions.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                <x-icon name="circle-help" class="h-3.5 w-3.5" />
                 Back to Questions
             </a>
         </div>
@@ -13,7 +14,10 @@
     <div class="py-12">
         <div class="max-w-5xl mx-auto space-y-6 sm:px-6 lg:px-8">
             <div class="bg-white p-6 shadow-sm sm:rounded-lg">
-                <h3 class="text-lg font-medium text-gray-900">Excel Format</h3>
+                <h3 class="inline-flex items-center gap-2 text-lg font-medium text-gray-900">
+                    <x-icon name="file-text" class="h-4 w-4 text-gray-400" />
+                    Excel Format
+                </h3>
                 <p class="mt-1 text-sm text-gray-600">
                     Keep the first row as headers. If your workbook has multiple worksheets, you will be asked which sheet to import.
                 </p>
@@ -95,7 +99,7 @@
                         </div>
 
                         <div>
-                            <x-input-label for="sheet_index" value="Worksheet" />
+                            <x-input-label for="sheet_index" value="Worksheet" icon="file-text" />
                             <select id="sheet_index" name="sheet_index" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">Choose worksheet</option>
                                 @foreach ($sheets as $sheet)
@@ -111,7 +115,7 @@
                         </div>
                     @else
                         <div>
-                            <x-input-label for="questions_file" value="Excel File (.xlsx)" />
+                            <x-input-label for="questions_file" value="Excel File (.xlsx)" icon="upload" />
                             <input
                                 id="questions_file"
                                 name="questions_file"
@@ -128,7 +132,10 @@
                     @endif
 
                     <div class="flex items-center gap-3">
-                        <x-primary-button>{{ ! empty($sheets) ? 'Import Selected Sheet' : 'Import Questions' }}</x-primary-button>
+                        <x-primary-button>
+                            <x-icon name="upload" />
+                            {{ ! empty($sheets) ? 'Import Selected Sheet' : 'Import Questions' }}
+                        </x-primary-button>
                         <a href="{{ route('admin.questions.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</a>
                     </div>
                 </form>
