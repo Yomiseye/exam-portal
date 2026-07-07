@@ -282,6 +282,7 @@
                         @auth
                             <a href="{{ url('/dashboard') }}" class="btn btn-primary">Dashboard</a>
                         @else
+                            <a href="{{ route('certifications.index') }}" class="btn btn-plain">Certifications</a>
                             <a href="{{ route('login') }}" class="btn btn-plain">Log in</a>
                         @endauth
                     </nav>
@@ -299,7 +300,8 @@
                         @auth
                             <a href="{{ url('/dashboard') }}" class="btn btn-primary">Open Dashboard</a>
                         @else
-                            <a href="{{ route('login') }}" class="btn btn-primary">Start</a>
+                            <a href="{{ route('certifications.index') }}" class="btn btn-primary">Browse Certifications</a>
+                            <a href="{{ route('login') }}" class="btn btn-plain">Log in</a>
                         @endauth
                     </div>
                 </section>

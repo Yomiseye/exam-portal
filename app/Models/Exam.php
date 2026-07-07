@@ -66,4 +66,10 @@ class Exam extends Model
     {
         return $this->hasMany(ExamRetakePermission::class);
     }
+
+    public function certificationPackages(): BelongsToMany
+    {
+        return $this->belongsToMany(CertificationPackage::class, 'certification_package_exam')
+            ->withTimestamps();
+    }
 }

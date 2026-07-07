@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CertificationController;
+use App\Http\Controllers\Admin\CertificationPackageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\StudentGroupController;
+use App\Http\Controllers\CertificationCatalogController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuestionImageController;
@@ -15,6 +18,9 @@ use App\Http\Controllers\Student\ExamController as StudentExamController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
+
+Route::get('/certifications', [CertificationCatalogController::class, 'index'])->name('certifications.index');
+Route::get('/certifications/{certification:slug}', [CertificationCatalogController::class, 'show'])->name('certifications.show');
 
 Route::get('/question-images/{filename}', QuestionImageController::class)
     ->where('filename', '[A-Za-z0-9._-]+')
@@ -29,6 +35,14 @@ Route::middleware(['auth', 'single.session', 'role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::delete('/certifications/{certification}/permanent', [CertificationController::class, 'permanentDestroy'])->name('certifications.permanent-destroy');
+        Route::get('/certifications/{certification}/packages/create', [CertificationPackageController::class, 'create'])->name('certifications.packages.create');
+        Route::post('/certifications/{certification}/packages', [CertificationPackageController::class, 'store'])->name('certifications.packages.store');
+        Route::delete('/certification-packages/{certificationPackage}/permanent', [CertificationPackageController::class, 'permanentDestroy'])->name('certification-packages.permanent-destroy');
+        Route::resource('certification-packages', CertificationPackageController::class)
+            ->only(['edit', 'update', 'destroy'])
+            ->parameters(['certification-packages' => 'certificationPackage']);
+        Route::resource('certifications', CertificationController::class);
         Route::patch('/student-groups/{student_group}/activate', [StudentGroupController::class, 'activate'])->name('student-groups.activate');
         Route::delete('/student-groups/{student_group}/permanent', [StudentGroupController::class, 'permanentDestroy'])->name('student-groups.permanent-destroy');
         Route::post('/student-groups/{student_group}/assignments', [StudentGroupController::class, 'assignExam'])->name('student-groups.assignments.store');

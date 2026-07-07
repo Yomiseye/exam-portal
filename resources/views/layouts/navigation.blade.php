@@ -33,6 +33,11 @@
                             {{ __('Categories') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('admin.certifications.index')" :active="request()->routeIs('admin.certifications.*') || request()->routeIs('admin.certification-packages.*')">
+                            <x-icon name="tag" />
+                            {{ __('Certifications') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.questions.index')" :active="request()->routeIs('admin.questions.*')">
                             <x-icon name="circle-help" />
                             {{ __('Questions') }}
@@ -130,6 +135,13 @@
                     <span class="inline-flex items-center gap-2">
                         <x-icon name="tag" />
                         {{ __('Categories') }}
+                    </span>
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.certifications.index')" :active="request()->routeIs('admin.certifications.*') || request()->routeIs('admin.certification-packages.*')">
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="tag" />
+                        {{ __('Certifications') }}
                     </span>
                 </x-responsive-nav-link>
 

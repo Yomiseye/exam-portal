@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\Category;
+use App\Models\Certification;
+use App\Models\CertificationPackage;
 use App\Models\Exam;
 use App\Models\ExamAssignment;
 use App\Models\Question;
@@ -23,6 +25,8 @@ class DashboardController extends Controller
                 ->where('role', 'student')
                 ->count(),
             'categoryCount' => Category::count(),
+            'certificationCount' => Certification::count(),
+            'packageCount' => CertificationPackage::count(),
             'questionCount' => Question::count(),
             'examCount' => Exam::count(),
             'assignmentCount' => ExamAssignment::count(),

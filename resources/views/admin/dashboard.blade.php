@@ -10,7 +10,7 @@
 
     <div class="portal-page">
         <div class="portal-container">
-            <div class="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <div class="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-4">
                 <div class="portal-kpi">
                     <div class="text-sm font-medium text-gray-500">Students</div>
                     <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $studentCount }}</div>
@@ -24,6 +24,16 @@
                 <div class="portal-kpi">
                     <div class="text-sm font-medium text-gray-500">Categories</div>
                     <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $categoryCount }}</div>
+                </div>
+
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">Certifications</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $certificationCount }}</div>
+                </div>
+
+                <div class="portal-kpi">
+                    <div class="text-sm font-medium text-gray-500">Packages</div>
+                    <div class="mt-2 text-3xl font-semibold text-gray-950">{{ $packageCount }}</div>
                 </div>
 
                 <div class="portal-kpi">
@@ -89,6 +99,14 @@
                             </div>
                             <p class="mt-1 text-sm text-gray-500">Organize subjects and topic hierarchies.</p>
                         </a>
+
+                        <a href="{{ route('admin.certifications.index') }}" class="rounded-md border border-gray-200 bg-white p-4 transition hover:border-teal-200 hover:bg-slate-50">
+                            <div class="inline-flex items-center gap-2 text-sm font-semibold text-gray-950">
+                                <x-icon name="tag" />
+                                Certifications
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">Publish commercial tracks, packages, prices, and included exams.</p>
+                        </a>
                     </div>
                 </section>
 
@@ -116,6 +134,10 @@
                         <a href="{{ route('admin.exams.create') }}" class="portal-button-primary w-full">
                             <x-icon name="plus" />
                             Create Exam
+                        </a>
+                        <a href="{{ route('admin.certifications.create') }}" class="portal-button-secondary w-full">
+                            <x-icon name="plus" />
+                            Create Certification
                         </a>
                     </div>
                 </aside>
