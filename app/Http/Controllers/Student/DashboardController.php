@@ -41,6 +41,15 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
+        $attempts
+            ->groupBy('exam_id')
+            ->each(function ($examAttempts): void {
+                $examAttempts
+                    ->sortBy('started_at')
+                    ->values()
+                    ->each(fn ($attempt, int $index) => $attempt->setAttribute('attempt_number', $index + 1));
+            });
+
         $latestAttemptsByExam = $attempts->unique('exam_id')->keyBy('exam_id');
         $unusedRetakesByExam = $student
             ->retakePermissions()
@@ -74,11 +83,9 @@ class DashboardController extends Controller
             $exam->setAttribute('assignment', $assignment);
         });
 
-        $recentAttempts = $attempts->take(5);
-
         return view('student.dashboard', [
             'exams' => $exams,
-            'attempts' => $recentAttempts,
+            'attempts' => $attempts,
         ]);
     }
 }

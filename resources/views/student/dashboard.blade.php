@@ -48,7 +48,7 @@
                 </div>
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+            <div class="grid gap-6">
                 <div class="portal-panel overflow-hidden">
                     <div class="p-6">
                         <div>
@@ -157,19 +157,55 @@
 
                 <div class="portal-panel overflow-hidden">
                     <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-950">Recent Activity</h3>
-                        <p class="mt-1 text-sm text-gray-500">Latest submitted or ongoing attempts.</p>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-950">Test History</h3>
+                                <p class="mt-1 text-sm text-gray-500">Complete record of your examination attempts.</p>
+                            </div>
+                            <span class="portal-badge portal-badge-neutral w-fit">
+                                <x-icon name="chart-bar" class="h-3 w-3" />
+                                {{ $attempts->count() }} attempt(s)
+                            </span>
+                        </div>
 
-                        <div class="mt-6 space-y-3">
+                        <div class="mt-6 space-y-3 lg:hidden">
                             @forelse ($attempts as $attempt)
-                                <a href="{{ $attempt->status === 'in_progress' ? route('student.attempts.show', $attempt) : route('student.attempts.result', $attempt) }}" class="block rounded-md border border-gray-200 p-4 transition hover:border-teal-200 hover:bg-slate-50">
-                                    <div class="font-medium text-gray-900">{{ $attempt->exam->title }}</div>
-                                    <div class="mt-1 text-sm text-gray-500">
+                                @php
+                                    $startedAt = $attempt->started_at;
+                                    $finishedAt = $attempt->submitted_at ?? ($attempt->status === 'in_progress' ? now() : null);
+                                    $durationMinutes = $startedAt && $finishedAt ? max(1, (int) ceil($startedAt->diffInSeconds($finishedAt) / 60)) : null;
+                                    $attemptUrl = $attempt->status === 'in_progress'
+                                        ? route('student.attempts.show', $attempt)
+                                        : route('student.attempts.result', $attempt);
+                                @endphp
+
+                                <a href="{{ $attemptUrl }}" class="block rounded-md border border-gray-200 p-4 transition hover:border-teal-200 hover:bg-slate-50">
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ $attempt->exam->title }}</div>
+                                            <div class="mt-1 text-xs text-gray-500">Attempt {{ $attempt->attempt_number }} &middot; {{ $attempt->started_at?->format('M j, Y g:i A') }}</div>
+                                        </div>
+                                        <span class="portal-badge {{
+                                            match ($attempt->status) {
+                                                'passed' => 'portal-badge-success',
+                                                'failed' => 'portal-badge-danger',
+                                                'in_progress' => $attempt->isPaused() ? 'portal-badge-warning' : 'portal-badge-info',
+                                                default => 'portal-badge-neutral',
+                                            }
+                                        }}">
+                                            {{ $attempt->status === 'in_progress' ? ($attempt->isPaused() ? 'Paused' : 'In progress') : ucfirst($attempt->status) }}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-3">
                                         @if ($attempt->status === 'in_progress')
-                                            {{ $attempt->isPaused() ? 'Paused' : 'In progress' }}
+                                            <span class="rounded-md bg-gray-100 px-2.5 py-2">Score pending</span>
+                                            <span class="rounded-md bg-gray-100 px-2.5 py-2">Percentage pending</span>
                                         @else
-                                            {{ $attempt->score }} / {{ $attempt->total_questions }} &middot; {{ $attempt->percentage }}%
+                                            <span class="rounded-md bg-gray-100 px-2.5 py-2">Score: {{ $attempt->score }} / {{ $attempt->total_questions }}</span>
+                                            <span class="rounded-md bg-gray-100 px-2.5 py-2">Percentage: {{ $attempt->percentage }}%</span>
                                         @endif
+                                        <span class="rounded-md bg-gray-100 px-2.5 py-2">Duration: {{ $durationMinutes ? $durationMinutes.' min' : 'Pending' }}</span>
                                     </div>
                                 </a>
                             @empty
@@ -180,6 +216,77 @@
                                     message="Your exam activity will appear here after you start or submit an exam."
                                 />
                             @endforelse
+                        </div>
+
+                        <div class="mt-6 hidden overflow-hidden rounded-md border border-gray-200 lg:block">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Test Name</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Date / Time</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Attempt</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Score</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Percentage</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Duration</th>
+                                        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">
+                                    @forelse ($attempts as $attempt)
+                                        @php
+                                            $startedAt = $attempt->started_at;
+                                            $finishedAt = $attempt->submitted_at ?? ($attempt->status === 'in_progress' ? now() : null);
+                                            $durationMinutes = $startedAt && $finishedAt ? max(1, (int) ceil($startedAt->diffInSeconds($finishedAt) / 60)) : null;
+                                            $attemptUrl = $attempt->status === 'in_progress'
+                                                ? route('student.attempts.show', $attempt)
+                                                : route('student.attempts.result', $attempt);
+                                        @endphp
+
+                                        <tr class="transition hover:bg-slate-50">
+                                            <td class="px-4 py-4 text-sm font-medium text-gray-950">{{ $attempt->exam->title }}</td>
+                                            <td class="px-4 py-4 text-sm text-gray-600">{{ $attempt->started_at?->format('M j, Y g:i A') }}</td>
+                                            <td class="px-4 py-4 text-sm text-gray-600">{{ $attempt->attempt_number }}</td>
+                                            <td class="px-4 py-4 text-sm text-gray-600">
+                                                {{ $attempt->status === 'in_progress' ? 'Pending' : $attempt->score.' / '.$attempt->total_questions }}
+                                            </td>
+                                            <td class="px-4 py-4 text-sm text-gray-600">
+                                                {{ $attempt->status === 'in_progress' ? 'Pending' : $attempt->percentage.'%' }}
+                                            </td>
+                                            <td class="px-4 py-4 text-sm">
+                                                <span class="portal-badge {{
+                                                    match ($attempt->status) {
+                                                        'passed' => 'portal-badge-success',
+                                                        'failed' => 'portal-badge-danger',
+                                                        'in_progress' => $attempt->isPaused() ? 'portal-badge-warning' : 'portal-badge-info',
+                                                        default => 'portal-badge-neutral',
+                                                    }
+                                                }}">
+                                                    {{ $attempt->status === 'in_progress' ? ($attempt->isPaused() ? 'Paused' : 'In progress') : ucfirst($attempt->status) }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-4 text-sm text-gray-600">{{ $durationMinutes ? $durationMinutes.' min' : 'Pending' }}</td>
+                                            <td class="px-4 py-4 text-right text-sm">
+                                                <a href="{{ $attemptUrl }}" class="inline-flex items-center gap-1.5 font-medium text-teal-700 hover:text-teal-900">
+                                                    <x-icon name="{{ $attempt->status === 'in_progress' ? 'arrow-right' : 'chart-bar' }}" class="h-3.5 w-3.5" />
+                                                    {{ $attempt->status === 'in_progress' ? 'Continue' : 'View Result' }}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="8">
+                                                <x-empty-state
+                                                    class="px-4 py-8"
+                                                    icon="chart-bar"
+                                                    title="No attempts yet"
+                                                    message="Your exam history will appear here after you start or submit an exam."
+                                                />
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

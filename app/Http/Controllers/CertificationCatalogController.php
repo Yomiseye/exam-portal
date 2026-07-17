@@ -15,7 +15,6 @@ class CertificationCatalogController extends Controller
         $certifications = Certification::query()
             ->with([
                 'activePackages' => fn ($query) => $query
-                    ->withCount('exams')
                     ->orderBy('sort_order')
                     ->orderBy('name'),
             ])
@@ -35,7 +34,7 @@ class CertificationCatalogController extends Controller
         abort_unless($certification->is_active, 404);
 
         $certification->load([
-            'activePackages.exams' => fn ($query) => $query->where('is_active', true)->orderBy('title'),
+            'activePackages' => fn ($query) => $query->orderBy('sort_order')->orderBy('name'),
         ]);
 
         return view('certifications.show', compact('certification'));

@@ -58,7 +58,7 @@
                             </p>
                         </div>
 
-                        <div class="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-3">
+                        <div class="mx-auto mt-8 grid max-w-2xl gap-3 sm:grid-cols-2">
                             <div class="rounded-md border border-white/10 bg-white/10 p-4 text-center">
                                 <div class="text-3xl font-semibold">{{ $certifications->count() }}</div>
                                 <div class="mt-1 text-xs font-semibold uppercase tracking-wide text-teal-50/70">Published tracks</div>
@@ -66,10 +66,6 @@
                             <div class="rounded-md border border-white/10 bg-white/10 p-4 text-center">
                                 <div class="text-3xl font-semibold">{{ $certifications->sum('packages_count') }}</div>
                                 <div class="mt-1 text-xs font-semibold uppercase tracking-wide text-teal-50/70">Packages</div>
-                            </div>
-                            <div class="rounded-md border border-white/10 bg-white/10 p-4 text-center">
-                                <div class="text-3xl font-semibold">{{ $certifications->sum(fn ($certification) => $certification->activePackages->sum('exams_count')) }}</div>
-                                <div class="mt-1 text-xs font-semibold uppercase tracking-wide text-teal-50/70">Exam inclusions</div>
                             </div>
                         </div>
                     </div>
@@ -90,7 +86,6 @@
                                 $previewPackages = $packages->take(3);
                                 $durationMin = $packages->min('duration_days');
                                 $durationMax = $packages->max('duration_days');
-                                $examCount = $packages->sum('exams_count');
                             @endphp
 
                             <article class="group flex h-full flex-col overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm ring-1 ring-gray-100 transition hover:-translate-y-1 hover:border-teal-300 hover:shadow-lg">
@@ -113,17 +108,13 @@
                                 <div class="flex flex-1 flex-col p-5">
                                     <h3 class="text-xl font-semibold text-gray-950 group-hover:text-teal-800">{{ $certification->name }}</h3>
                                     <p class="mt-2 text-sm leading-6 text-gray-600">
-                                        {{ \Illuminate\Support\Str::limit($certification->description ?: 'View package options and included mock exams for this certification track.', 150) }}
+                                        {{ \Illuminate\Support\Str::limit($certification->description ?: 'View package options for this certification track.', 150) }}
                                     </p>
 
-                                    <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+                                    <div class="mt-5 grid grid-cols-2 gap-2 text-center">
                                         <div class="rounded-md bg-[#f4f7f8] px-2 py-3">
                                             <div class="text-lg font-semibold text-gray-950">{{ $certification->packages_count }}</div>
                                             <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Packages</div>
-                                        </div>
-                                        <div class="rounded-md bg-[#f4f7f8] px-2 py-3">
-                                            <div class="text-lg font-semibold text-gray-950">{{ $examCount }}</div>
-                                            <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Exams</div>
                                         </div>
                                         <div class="rounded-md bg-[#f4f7f8] px-2 py-3">
                                             <div class="text-lg font-semibold text-gray-950">
@@ -149,8 +140,7 @@
                                                         @endif
                                                     </div>
                                                     <div class="shrink-0 text-right text-xs font-semibold text-gray-600">
-                                                        {{ $package->duration_days }} days<br>
-                                                        {{ $package->exams_count }} exam(s)
+                                                        {{ $package->duration_days }} days
                                                     </div>
                                                 </div>
                                             @empty

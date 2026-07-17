@@ -14,7 +14,6 @@
     <body class="bg-[#eef3f6] font-sans text-gray-950 antialiased">
         @php
             $packageCount = $certification->activePackages->count();
-            $examCount = $certification->activePackages->sum(fn ($package) => $package->exams->count());
             $durationMin = $certification->activePackages->min('duration_days');
             $durationMax = $certification->activePackages->max('duration_days');
         @endphp
@@ -66,14 +65,10 @@
                                 {{ $certification->description ?: 'Compare available preparation packages and choose the access level that fits your exam timeline.' }}
                             </p>
 
-                            <div class="mt-7 grid gap-3 sm:grid-cols-3">
+                            <div class="mt-7 grid gap-3 sm:grid-cols-2">
                                 <div class="rounded-md border border-white/10 bg-white/10 p-4">
                                     <div class="text-3xl font-semibold">{{ $packageCount }}</div>
                                     <div class="mt-1 text-xs font-semibold uppercase tracking-wide text-teal-50/70">Packages</div>
-                                </div>
-                                <div class="rounded-md border border-white/10 bg-white/10 p-4">
-                                    <div class="text-3xl font-semibold">{{ $examCount }}</div>
-                                    <div class="mt-1 text-xs font-semibold uppercase tracking-wide text-teal-50/70">Exam inclusions</div>
                                 </div>
                                 <div class="rounded-md border border-white/10 bg-white/10 p-4">
                                     <div class="text-3xl font-semibold">
@@ -94,7 +89,7 @@
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <h2 class="text-2xl font-semibold text-gray-950">Compare Package Options</h2>
-                            <p class="mt-1 text-sm text-gray-600">Choose based on preparation intensity, access duration, and included mock exams.</p>
+                            <p class="mt-1 text-sm text-gray-600">Choose based on preparation intensity, access duration, and package fit.</p>
                         </div>
                     </div>
 
@@ -148,30 +143,7 @@
                                             </dt>
                                             <dd class="font-semibold text-gray-900">{{ $package->duration_days }} days</dd>
                                         </div>
-                                        <div class="flex items-center justify-between rounded-md bg-white px-3 py-2 ring-1 ring-gray-200">
-                                            <dt class="inline-flex items-center gap-1.5 text-gray-500">
-                                                <x-icon name="clipboard-list" class="h-3.5 w-3.5" />
-                                                Mock exams
-                                            </dt>
-                                            <dd class="font-semibold text-gray-900">{{ $package->exams->count() }}</dd>
-                                        </div>
                                     </dl>
-
-                                    <div class="mt-5 flex-1">
-                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Included exams</div>
-                                        <div class="mt-2 space-y-2">
-                                            @forelse ($package->exams as $exam)
-                                                <div class="flex items-start gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700">
-                                                    <x-icon name="check-circle" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
-                                                    <span>{{ $exam->title }}</span>
-                                                </div>
-                                            @empty
-                                                <div class="rounded-md border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500">
-                                                    Exam details will be published soon.
-                                                </div>
-                                            @endforelse
-                                        </div>
-                                    </div>
 
                                     <a href="{{ route('login') }}" class="{{ $isRecommended ? 'bg-[#0f766e] text-white hover:bg-[#115e59]' : 'bg-[#082f36] text-white hover:bg-[#0f3f47]' }} mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md px-4 py-3 text-xs font-semibold uppercase tracking-widest shadow-sm transition">
                                         <x-icon name="arrow-right" class="h-4 w-4" />
