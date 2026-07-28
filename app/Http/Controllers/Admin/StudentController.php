@@ -24,6 +24,8 @@ class StudentController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $students = User::query()
             ->where('role', 'student')
             ->with(['examAssignments.exam', 'studentGroup'])
@@ -40,7 +42,7 @@ class StudentController extends Controller
             ->when($request->filled('student_group_id'), fn ($query) => $query->where('student_group_id', $request->integer('student_group_id')))
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'active'))
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $exams = Exam::query()

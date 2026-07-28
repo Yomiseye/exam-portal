@@ -52,6 +52,11 @@
                             <x-icon name="chart-bar" />
                             {{ __('Results') }}
                         </x-nav-link>
+
+                        <x-nav-link :href="route('admin.analytics.index')" :active="request()->routeIs('admin.analytics.*')">
+                            <x-icon name="chart-bar" />
+                            {{ __('Analytics') }}
+                        </x-nav-link>
                     @endif
                 </div>
             </div>
@@ -163,6 +168,13 @@
                     <span class="inline-flex items-center gap-2">
                         <x-icon name="chart-bar" />
                         {{ __('Results') }}
+                    </span>
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.analytics.index')" :active="request()->routeIs('admin.analytics.*')">
+                    <span class="inline-flex items-center gap-2">
+                        <x-icon name="chart-bar" />
+                        {{ __('Analytics') }}
                     </span>
                 </x-responsive-nav-link>
             @endif

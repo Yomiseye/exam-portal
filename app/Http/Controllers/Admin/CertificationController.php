@@ -19,6 +19,8 @@ class CertificationController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $certifications = Certification::query()
             ->withCount('packages')
             ->when($request->filled('search'), function ($query) use ($request): void {
@@ -31,7 +33,7 @@ class CertificationController extends Controller
             })
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'active'))
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('admin.certifications.index', compact('certifications'));

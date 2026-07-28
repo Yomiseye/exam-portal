@@ -34,6 +34,18 @@
                         <span class="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
                             {{ ucfirst($question->difficulty) }}
                         </span>
+                        <span class="inline-flex w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-700">
+                            {{ $question->lifecycleLabel() }}
+                        </span>
+                        <span class="inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
+                            {{ $question->ecoDomainLabel() }}
+                        </span>
+                        <span class="inline-flex w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
+                            {{ $question->performanceDomainLabel() }}
+                        </span>
+                        <span class="inline-flex w-fit rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                            {{ $question->focusAreaLabel() }}
+                        </span>
                         <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide {{ $question->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">
                             {{ $question->is_active ? 'Active' : 'Inactive' }}
                         </span>
@@ -86,9 +98,9 @@
                                         >
                                     @endif
 
-                                    @if ($question->question_type === \App\Models\Question::TYPE_MATCHING)
+                                    @if (in_array($question->question_type, [\App\Models\Question::TYPE_MATCHING, \App\Models\Question::TYPE_DRAG_DROP], true))
                                         <div class="mt-3 rounded-md bg-white/80 p-3 text-sm text-gray-700">
-                                            <span class="font-medium text-gray-500">Match:</span>
+                                            <span class="font-medium text-gray-500">{{ $question->question_type === \App\Models\Question::TYPE_DRAG_DROP ? 'Drop target:' : 'Match:' }}</span>
                                             {{ $option->match_text }}
                                         </div>
                                     @endif

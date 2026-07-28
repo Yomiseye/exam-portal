@@ -326,7 +326,82 @@ class ExamController extends Controller
             'answers.question.options',
         ]);
 
-        return view('student.exams.result', compact('attempt'));
+        $performanceAnalytics = $this->performanceAnalytics($attempt);
+
+        return view('student.exams.result', compact('attempt', 'performanceAnalytics'));
+    }
+
+    /**
+     * @return array<string, array{title: string, rows: array<int, array{label: string, correct: int, total: int, percentage: int, status: string}>}>
+     */
+    private function performanceAnalytics(Attempt $attempt): array
+    {
+        return [
+            'lifecycle' => [
+                'title' => 'Lifecycle Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->lifecycle ?? 'unclassified',
+                    $answer->question->lifecycleLabel(),
+                ]),
+            ],
+            'eco_domain' => [
+                'title' => 'Eco Domain Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->eco_domain ?? 'unclassified',
+                    $answer->question->ecoDomainLabel(),
+                ]),
+            ],
+            'domain' => [
+                'title' => 'Performance Domain',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->domain ?? 'unclassified',
+                    $answer->question->performanceDomainLabel(),
+                ]),
+            ],
+            'focus_area' => [
+                'title' => 'Focus Area Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->focus_area ?? 'unclassified',
+                    $answer->question->focusAreaLabel(),
+                ]),
+            ],
+        ];
+    }
+
+    /**
+     * @param  callable(AttemptAnswer): array{0: string, 1: string}  $classifier
+     * @return array<int, array{label: string, correct: int, total: int, percentage: int, status: string}>
+     */
+    private function analyticsRows(Attempt $attempt, callable $classifier): array
+    {
+        return $attempt->answers
+            ->groupBy(fn (AttemptAnswer $answer) => $classifier($answer)[0])
+            ->map(function ($answers) use ($classifier): array {
+                $firstAnswer = $answers->first();
+                $total = $answers->count();
+                $correct = $answers->where('is_correct', true)->count();
+                $percentage = $total > 0 ? (int) round(($correct / $total) * 100) : 0;
+
+                return [
+                    'label' => $classifier($firstAnswer)[1],
+                    'correct' => $correct,
+                    'total' => $total,
+                    'percentage' => $percentage,
+                    'status' => $this->analyticsStatus($percentage),
+                ];
+            })
+            ->sortBy([['percentage', 'desc'], ['label', 'asc']])
+            ->values()
+            ->all();
+    }
+
+    private function analyticsStatus(int $percentage): string
+    {
+        return match (true) {
+            $percentage >= 80 => 'Strength',
+            $percentage >= 50 => 'Developing',
+            default => 'Needs Review',
+        };
     }
 
     private function authorizeAttempt(Attempt $attempt): void
@@ -412,7 +487,7 @@ class ExamController extends Controller
     {
         return match ($answer->question->question_type) {
             Question::TYPE_MULTIPLE_CHOICE => $answer->selected_option_ids ?? [],
-            Question::TYPE_MATCHING => $answer->matching_answer ?? [],
+            Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP => $answer->matching_answer ?? [],
             default => $answer->selected_option_id,
         };
     }
@@ -421,7 +496,7 @@ class ExamController extends Controller
     {
         return match ($answer->question->question_type) {
             Question::TYPE_MULTIPLE_CHOICE => is_array($value) && $this->optionIds($value) !== [],
-            Question::TYPE_MATCHING => $this->matchingAnswerIsComplete($answer, $value),
+            Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP => $this->matchingAnswerIsComplete($answer, $value),
             default => is_numeric($value),
         };
     }
@@ -447,7 +522,7 @@ class ExamController extends Controller
 
         return match ($answer->question->question_type) {
             Question::TYPE_MULTIPLE_CHOICE => $this->selectedOptionIdsAreValid($value, $optionIds, $requireComplete),
-            Question::TYPE_MATCHING => $this->matchingAnswerIsValid($value, $optionIds, $requireComplete),
+            Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP => $this->matchingAnswerIsValid($value, $optionIds, $requireComplete),
             default => is_numeric($value) && in_array((int) $value, $optionIds, true),
         };
     }
@@ -500,7 +575,7 @@ class ExamController extends Controller
                 'selected_option_ids' => $this->optionIds(is_array($value) ? $value : []),
                 'matching_answer' => null,
             ]),
-            Question::TYPE_MATCHING => $answer->update([
+            Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP => $answer->update([
                 'selected_option_id' => null,
                 'selected_option_ids' => null,
                 'matching_answer' => $this->matchingAnswer($answer, is_array($value) ? $value : []),
@@ -517,7 +592,7 @@ class ExamController extends Controller
     {
         return match ($answer->question->question_type) {
             Question::TYPE_MULTIPLE_CHOICE => $this->multipleChoiceAnswerIsCorrect($answer),
-            Question::TYPE_MATCHING => $this->matchingAnswerIsCorrect($answer),
+            Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP => $this->matchingAnswerIsCorrect($answer),
             default => (bool) $answer->question->options->firstWhere('id', $answer->selected_option_id)?->is_correct,
         };
     }

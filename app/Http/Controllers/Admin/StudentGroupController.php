@@ -18,6 +18,8 @@ class StudentGroupController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $groups = StudentGroup::query()
             ->withCount('students')
             ->with(['examAssignments.exam'])
@@ -31,7 +33,7 @@ class StudentGroupController extends Controller
             })
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'active'))
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $exams = Exam::query()

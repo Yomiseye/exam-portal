@@ -24,6 +24,8 @@ class QuestionController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $questions = Question::query()
             ->with('category.parent', 'tags')
             ->withCount('options')
@@ -34,15 +36,23 @@ class QuestionController extends Controller
                     $query->where('question_text', 'like', $search)
                         ->orWhere('question_type', 'like', $search)
                         ->orWhere('difficulty', 'like', $search)
+                        ->orWhere('lifecycle', 'like', $search)
+                        ->orWhere('eco_domain', 'like', $search)
+                        ->orWhere('domain', 'like', $search)
+                        ->orWhere('focus_area', 'like', $search)
                         ->orWhereHas('category', fn ($query) => $query->where('name', 'like', $search))
                         ->orWhereHas('category.parent', fn ($query) => $query->where('name', 'like', $search))
                         ->orWhereHas('tags', fn ($query) => $query->where('name', 'like', $search));
                 });
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
-            ->when($request->filled('difficulty'), fn ($query) => $query->where('difficulty', $request->string('difficulty')))
+            ->when($request->filled('difficulty'), fn ($query) => $query->where('difficulty', $request->string('difficulty')->toString()))
+            ->when($request->filled('lifecycle'), fn ($query) => $this->applyMetadataFilter($query, 'lifecycle', $request->string('lifecycle')->toString(), Question::LIFECYCLES))
+            ->when($request->filled('eco_domain'), fn ($query) => $this->applyMetadataFilter($query, 'eco_domain', $request->string('eco_domain')->toString(), Question::ECO_DOMAINS))
+            ->when($request->filled('domain'), fn ($query) => $this->applyMetadataFilter($query, 'domain', $request->string('domain')->toString(), Question::PERFORMANCE_DOMAINS))
+            ->when($request->filled('focus_area'), fn ($query) => $this->applyMetadataFilter($query, 'focus_area', $request->string('focus_area')->toString(), Question::FOCUS_AREAS))
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $categories = Category::query()
@@ -52,6 +62,30 @@ class QuestionController extends Controller
             ->get();
 
         return view('admin.questions.index', compact('questions', 'categories'));
+    }
+
+    /**
+     * @param  array<string, string>  $allowed
+     */
+    private function applyMetadataFilter($query, string $column, string $value, array $allowed): void
+    {
+        if ($value === 'unclassified') {
+            $query->where(function ($query) use ($column, $allowed): void {
+                $query->whereNull($column)
+                    ->orWhere($column, '')
+                    ->orWhereNotIn($column, array_keys($allowed));
+            });
+
+            return;
+        }
+
+        $label = $allowed[$value] ?? $value;
+
+        $query->where(function ($query) use ($column, $value, $label): void {
+            $query->where($column, $value)
+                ->orWhere($column, strtolower($label))
+                ->orWhere($column, $label);
+        });
     }
 
     /**
@@ -378,6 +412,10 @@ class QuestionController extends Controller
             'question_type' => ['required', Rule::in(array_keys(Question::TYPES))],
             'explanation' => ['nullable', 'string'],
             'difficulty' => ['required', Rule::in(['easy', 'medium', 'hard'])],
+            'lifecycle' => ['required', Rule::in(array_keys(Question::LIFECYCLES))],
+            'eco_domain' => ['required', Rule::in(array_keys(Question::ECO_DOMAINS))],
+            'domain' => ['required', Rule::in(array_keys(Question::PERFORMANCE_DOMAINS))],
+            'focus_area' => ['required', Rule::in(array_keys(Question::FOCUS_AREAS))],
             'is_active' => ['sometimes', 'boolean'],
             'options' => ['required', 'array', 'min:2'],
             'options.*.id' => ['nullable', 'integer'],
@@ -436,19 +474,23 @@ class QuestionController extends Controller
                 }
             }
 
-            if ($questionType === Question::TYPE_MATCHING) {
+            if (in_array($questionType, [Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP], true)) {
                 $matchTexts = [];
 
                 foreach ($options as $index => $option) {
                     if (blank($option['match_text'] ?? null)) {
-                        $validator->errors()->add("options.{$index}.match_text", 'Enter the matching answer.');
+                        $validator->errors()->add("options.{$index}.match_text", $questionType === Question::TYPE_DRAG_DROP
+                            ? 'Enter the drop target.'
+                            : 'Enter the matching answer.');
                     }
 
                     $matchTexts[] = strtolower(trim((string) ($option['match_text'] ?? '')));
                 }
 
                 if (count($matchTexts) !== count(array_unique($matchTexts))) {
-                    $validator->errors()->add('options', 'Matching answers must be unique.');
+                    $validator->errors()->add('options', $questionType === Question::TYPE_DRAG_DROP
+                        ? 'Drop targets must be unique.'
+                        : 'Matching answers must be unique.');
                 }
 
                 return;
@@ -500,6 +542,10 @@ class QuestionController extends Controller
                 'question_type' => $validated['question_type'],
                 'explanation' => filled($validated['explanation'] ?? null) ? RichText::clean($validated['explanation']) : null,
                 'difficulty' => $validated['difficulty'],
+                'lifecycle' => $validated['lifecycle'],
+                'eco_domain' => $validated['eco_domain'],
+                'domain' => $validated['domain'],
+                'focus_area' => $validated['focus_area'],
                 'is_active' => $request->boolean('is_active'),
             ],
             'options' => collect(array_values($validated['options']))
@@ -619,8 +665,8 @@ class QuestionController extends Controller
 
             $optionData = [
                 'option_text' => $option['text'],
-                'match_text' => $question->question_type === Question::TYPE_MATCHING ? ($option['match_text'] ?? null) : null,
-                'is_correct' => $question->question_type === Question::TYPE_MATCHING || in_array($index, $correctOptions, true),
+                'match_text' => in_array($question->question_type, [Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP], true) ? ($option['match_text'] ?? null) : null,
+                'is_correct' => in_array($question->question_type, [Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP], true) || in_array($index, $correctOptions, true),
             ];
 
             if ($optionModel) {
@@ -686,7 +732,7 @@ class QuestionController extends Controller
     {
         $questionType = $request->input('question_type', Question::TYPE_SINGLE_CHOICE);
 
-        if ($questionType === Question::TYPE_MATCHING) {
+        if (in_array($questionType, [Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP], true)) {
             return [];
         }
 
@@ -716,6 +762,23 @@ class QuestionController extends Controller
         $subcategoryName = trim($row['subcategory'] ?? '');
         $questionType = $this->questionTypeFromImport($row['question_type'] ?? 'single_choice');
         $difficulty = strtolower($row['difficulty'] ?? 'easy');
+        $legacyDomain = $this->rowValueFromImport($row, ['domain']);
+        $metadataText = implode(' ', [
+            $categoryName,
+            $subcategoryName,
+            $this->rowValueFromImport($row, ['tags']),
+            $this->rowValueFromImport($row, ['metadata', 'classification']),
+        ]);
+        $lifecycle = $this->metadataValueFromImport($this->rowValueFromImport($row, ['lifecycle', 'life_cycle', 'approach', 'methodology']), Question::LIFECYCLES)
+            ?? $this->metadataValueFromImport($metadataText, Question::LIFECYCLES);
+        $ecoDomain = $this->metadataValueFromImport($this->rowValueFromImport($row, ['eco_domain', 'eco']), Question::ECO_DOMAINS)
+            ?? $this->metadataValueFromImport($legacyDomain, Question::ECO_DOMAINS)
+            ?? $this->metadataValueFromImport($metadataText, Question::ECO_DOMAINS);
+        $domain = $this->metadataValueFromImport($this->rowValueFromImport($row, ['performance_domain', 'performance', 'pmp_domain']), Question::PERFORMANCE_DOMAINS)
+            ?? $this->metadataValueFromImport($legacyDomain, Question::PERFORMANCE_DOMAINS)
+            ?? $this->metadataValueFromImport($metadataText, Question::PERFORMANCE_DOMAINS);
+        $focusArea = $this->metadataValueFromImport($this->rowValueFromImport($row, ['focus_area', 'focus', 'process_group']), Question::FOCUS_AREAS)
+            ?? $this->metadataValueFromImport($metadataText, Question::FOCUS_AREAS);
         $options = $this->optionsFromImportRow($row);
 
         if ($categoryName === '') {
@@ -731,7 +794,7 @@ class QuestionController extends Controller
         }
 
         if (! $questionType) {
-            $errors[] = "Row {$rowNumber}: question_type must be single_choice, multiple_choice, true_false, or matching.";
+            $errors[] = "Row {$rowNumber}: question_type must be single_choice, multiple_choice, true_false, matching, or drag_drop.";
         }
 
         if (! in_array($difficulty, ['easy', 'medium', 'hard'], true)) {
@@ -744,18 +807,18 @@ class QuestionController extends Controller
 
         $correctOptions = [];
 
-        if ($questionType === Question::TYPE_MATCHING) {
+        if (in_array($questionType, [Question::TYPE_MATCHING, Question::TYPE_DRAG_DROP], true)) {
             $matchTexts = collect($options)
                 ->pluck('match_text')
                 ->map(fn ($text) => strtolower(trim((string) $text)))
                 ->all();
 
             if (in_array('', $matchTexts, true)) {
-                $errors[] = "Row {$rowNumber}: matching questions require match_1, match_2, and so on for each option.";
+                $errors[] = "Row {$rowNumber}: {$questionType} questions require match_1, match_2, and so on for each option.";
             }
 
             if (count($matchTexts) !== count(array_unique($matchTexts))) {
-                $errors[] = "Row {$rowNumber}: matching answers must be unique.";
+                $errors[] = "Row {$rowNumber}: match answers must be unique.";
             }
         } else {
             $correctOptions = $this->correctOptionsFromImportRow($row['correct_answers'] ?? '', $options);
@@ -794,6 +857,10 @@ class QuestionController extends Controller
                     'question_type' => $questionType,
                     'explanation' => blank($row['explanation'] ?? null) ? null : $row['explanation'],
                     'difficulty' => $difficulty,
+                    'lifecycle' => $lifecycle,
+                    'eco_domain' => $ecoDomain,
+                    'domain' => $domain,
+                    'focus_area' => $focusArea,
                     'is_active' => $this->booleanFromImport($row['is_active'] ?? 'yes'),
                 ],
                 'category' => [
@@ -805,6 +872,35 @@ class QuestionController extends Controller
                 'tags' => $this->tagNames($row['tags'] ?? ''),
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     * @param  array<int, string>  $headers
+     */
+    private function rowValueFromImport(array $row, array $headers): string
+    {
+        foreach ($headers as $header) {
+            $value = trim((string) ($row[$header] ?? ''));
+
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        foreach ($headers as $header) {
+            foreach ($row as $rowHeader => $value) {
+                if (str_starts_with($rowHeader, $header.'_')) {
+                    $value = trim((string) $value);
+
+                    if ($value !== '') {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        return '';
     }
 
     private function questionTypeFromImport(string $value): ?string
@@ -819,8 +915,69 @@ class QuestionController extends Controller
             'multiple', 'multiple_correct', 'multiple_choice' => Question::TYPE_MULTIPLE_CHOICE,
             'true_false', 'true_or_false', 'boolean' => Question::TYPE_TRUE_FALSE,
             'match', 'matching' => Question::TYPE_MATCHING,
+            'drag_drop', 'drag_and_drop', 'dragdrop', 'drag' => Question::TYPE_DRAG_DROP,
             default => null,
         };
+    }
+
+    /**
+     * @param  array<string, string>  $allowed
+     */
+    private function metadataValueFromImport(string $value, array $allowed): ?string
+    {
+        $normalized = str($value)
+            ->lower()
+            ->replace(['&', '/', '-', ' '], ['and', '_', '_', '_'])
+            ->replace('__', '_')
+            ->trim('_')
+            ->toString();
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (array_key_exists('environment', $allowed) && in_array($normalized, ['business', 'business_environment'], true)) {
+            return 'environment';
+        }
+
+        if (array_key_exists('predictive', $allowed) && str_contains($normalized, 'waterfall')) {
+            return 'predictive';
+        }
+
+        if (array_key_exists('monitoring_controlling', $allowed) && (
+            str_contains($normalized, 'monitoring_control')
+            || str_contains($normalized, 'monitoring_and_control')
+        )) {
+            return 'monitoring_controlling';
+        }
+
+        if (array_key_exists($normalized, $allowed)) {
+            return $normalized;
+        }
+
+        foreach ($allowed as $key => $label) {
+            $labelKey = str($label)
+                ->lower()
+                ->replace(['&', '/', '-', ' '], ['and', '_', '_', '_'])
+                ->replace('__', '_')
+                ->trim('_')
+                ->toString();
+
+            $compactNormalized = str_replace('_and_', '_', $normalized);
+            $compactLabelKey = str_replace('_and_', '_', $labelKey);
+
+            if (
+                $normalized === $labelKey
+                || $compactNormalized === $compactLabelKey
+                || str_contains($normalized, $key)
+                || str_contains($compactNormalized, $compactLabelKey)
+                || str_contains($normalized, $labelKey)
+            ) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     /**

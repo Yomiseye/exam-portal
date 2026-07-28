@@ -164,7 +164,7 @@
                                         @empty
                                             No answer selected
                                         @endforelse
-                                    @elseif ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                    @elseif (in_array($questionType, [\App\Models\Question::TYPE_MATCHING, \App\Models\Question::TYPE_DRAG_DROP], true))
                                         <div class="space-y-1">
                                             @foreach ($answer->question->options as $option)
                                                 <div class="mb-3">
@@ -199,7 +199,7 @@
                             <div class="rounded-md bg-gray-50 p-3">
                                 <div class="font-medium text-gray-500">Correct Answer</div>
                                 <div class="mt-1 text-gray-900">
-                                    @if ($questionType === \App\Models\Question::TYPE_MATCHING)
+                                    @if (in_array($questionType, [\App\Models\Question::TYPE_MATCHING, \App\Models\Question::TYPE_DRAG_DROP], true))
                                         <div class="space-y-1">
                                             @foreach ($answer->question->options as $option)
                                                 <div class="mb-3">

@@ -76,6 +76,11 @@
                 </form>
             </div>
 
+            <div class="flex flex-col gap-3 rounded-md border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-500">{{ $students->total() }} student(s) found.</p>
+                <x-page-size-selector />
+            </div>
+
             <div class="space-y-4">
                 @forelse ($students as $student)
                     <div class="bg-white p-6 shadow-sm sm:rounded-lg">

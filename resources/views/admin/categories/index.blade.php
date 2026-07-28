@@ -58,6 +58,11 @@
                 </form>
             </div>
 
+            <div class="mb-6 flex flex-col gap-3 rounded-md border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-500">{{ $categories->total() }} category record(s) found.</p>
+                <x-page-size-selector />
+            </div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">

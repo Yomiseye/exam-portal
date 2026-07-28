@@ -80,6 +80,37 @@
             -webkit-user-select: auto;
             user-select: auto;
         }
+
+        .drag-choice {
+            cursor: grab;
+        }
+
+        .drag-choice:active {
+            cursor: grabbing;
+        }
+
+        .drop-zone {
+            min-height: 3rem;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            background: #f8fafc;
+            transition: border-color 140ms ease, background-color 140ms ease;
+        }
+
+        .drop-zone:hover {
+            border-color: #0f766e;
+            background: #f0fdfa;
+        }
+
+        .exam-calculator {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .exam-calculator-display {
+            min-height: 3.5rem;
+            word-break: break-all;
+        }
     </style>
 
     <x-slot name="header">
@@ -112,6 +143,9 @@
                     lastSecurityWarning: '',
                     fullscreenSupported: false,
                     fullscreenActive: false,
+                    calculatorOpen: false,
+                    calculatorDisplay: '0',
+                    calculatorError: false,
                     updateTimer() {
                         const diff = Math.max(0, this.expiresAt - Date.now());
                         this.remainingSeconds = Math.floor(diff / 1000);
@@ -180,6 +214,123 @@
                             this.fullscreenActive = true;
                         } catch (error) {
                             this.addSecurityWarning('Fullscreen request was not completed.');
+                        }
+                    },
+                    openCalculator() {
+                        this.calculatorOpen = true;
+                    },
+                    closeCalculator() {
+                        this.calculatorOpen = false;
+                    },
+                    clearCalculator() {
+                        this.calculatorDisplay = '0';
+                        this.calculatorError = false;
+                    },
+                    calculatorBackspace() {
+                        if (this.calculatorError || this.calculatorDisplay.length <= 1) {
+                            this.clearCalculator();
+                            return;
+                        }
+
+                        this.calculatorDisplay = this.calculatorDisplay.slice(0, -1);
+                    },
+                    pressCalculator(value) {
+                        if (this.calculatorError) {
+                            this.clearCalculator();
+                        }
+
+                        const operators = ['+', '-', '*', '/', '%'];
+                        const current = this.calculatorDisplay;
+                        const last = current.slice(-1);
+
+                        if (value === '(' || value === ')') {
+                            if (current === '0' && value === '(') {
+                                this.calculatorDisplay = value;
+                                return;
+                            }
+
+                            if (current.length < 42) {
+                                this.calculatorDisplay = current + value;
+                            }
+
+                            return;
+                        }
+
+                        if (operators.includes(value) && operators.includes(last)) {
+                            this.calculatorDisplay = current.slice(0, -1) + value;
+                            return;
+                        }
+
+                        if (value === '.' && current.split(/[+\-*/%()]/).pop().includes('.')) {
+                            return;
+                        }
+
+                        if (current === '0' && ! operators.includes(value) && value !== '.') {
+                            this.calculatorDisplay = value;
+                            return;
+                        }
+
+                        if (current.length < 42) {
+                            this.calculatorDisplay = current + value;
+                        }
+                    },
+                    calculateResult() {
+                        const expression = this.calculatorDisplay;
+
+                        if (! /^[0-9+\-*/%.() ]+$/.test(expression)) {
+                            this.calculatorDisplay = 'Error';
+                            this.calculatorError = true;
+                            return;
+                        }
+
+                        try {
+                            const result = Function(`'use strict'; return (${expression})`)();
+
+                            if (! Number.isFinite(result)) {
+                                throw new Error('Invalid result');
+                            }
+
+                            this.calculatorDisplay = Number.isInteger(result)
+                                ? String(result)
+                                : String(Number(result.toFixed(8)));
+                            this.calculatorError = false;
+                        } catch (error) {
+                            this.calculatorDisplay = 'Error';
+                            this.calculatorError = true;
+                        }
+                    },
+                    handleCalculatorKey(event) {
+                        if (! this.calculatorOpen) {
+                            return;
+                        }
+
+                        const key = event.key;
+                        const keyMap = {
+                            Enter: '=',
+                            Escape: 'close',
+                            Backspace: 'backspace',
+                            Delete: 'clear',
+                            x: '*',
+                            X: '*',
+                        };
+                        const mapped = keyMap[key] ?? key;
+                        const allowed = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '+', '-', '*', '/', '%', '(', ')'];
+
+                        if (allowed.includes(mapped) || ['=', 'close', 'backspace', 'clear'].includes(mapped)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+
+                        if (allowed.includes(mapped)) {
+                            this.pressCalculator(mapped);
+                        } else if (mapped === '=') {
+                            this.calculateResult();
+                        } else if (mapped === 'backspace') {
+                            this.calculatorBackspace();
+                        } else if (mapped === 'clear') {
+                            this.clearCalculator();
+                        } else if (mapped === 'close') {
+                            this.closeCalculator();
                         }
                     },
                     answeredCount() {
@@ -258,6 +409,47 @@
                                 return values;
                             }, {});
                     },
+                    dragValue: '',
+                    dragDropRefresh: 0,
+                    setDragValue(value) {
+                        this.dragValue = value;
+                    },
+                    dropMatch(questionId, optionId) {
+                        if (! this.dragValue) {
+                            return;
+                        }
+
+                        const input = document.querySelector(`[data-drag-group='${questionId}'][data-option-id='${optionId}']`);
+
+                        if (! input) {
+                            return;
+                        }
+
+                        input.value = this.dragValue;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        this.dragDropRefresh++;
+                        this.saveAnswer(questionId, this.dragDropValues(questionId));
+                        this.dragValue = '';
+                    },
+                    clearDrop(questionId, optionId) {
+                        const input = document.querySelector(`[data-drag-group='${questionId}'][data-option-id='${optionId}']`);
+
+                        if (! input) {
+                            return;
+                        }
+
+                        input.value = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        this.dragDropRefresh++;
+                        this.saveAnswer(questionId, this.dragDropValues(questionId));
+                    },
+                    dragDropValues(questionId) {
+                        return Array.from(document.querySelectorAll(`[data-drag-group='${questionId}']`))
+                            .reduce((values, input) => {
+                                values[input.dataset.optionId] = input.value;
+                                return values;
+                            }, {});
+                    },
                     next() {
                         if (this.current < this.total - 1) {
                             this.current++;
@@ -316,7 +508,7 @@
                 @copy.prevent="blockSecurityAction('Copy blocked during exam.')"
                 @cut.prevent="blockSecurityAction('Cut blocked during exam.')"
                 @paste.prevent="blockSecurityAction('Paste blocked during exam.')"
-                @keydown.window="blockExamShortcut($event)"
+                @keydown.window="handleCalculatorKey($event); blockExamShortcut($event)"
             >
                 @csrf
                 <button type="submit" name="submit_unanswered" value="0" x-ref="completedSubmit" class="hidden" tabindex="-1" aria-hidden="true"></button>
@@ -343,6 +535,16 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                class="portal-button-secondary"
+                                @click.prevent="calculatorOpen = true"
+                                aria-label="Open calculator"
+                            >
+                                <x-icon name="calculator" />
+                                Calculator
+                            </button>
+
                             @if ($attempt->exam->allow_pause)
                                 <button
                                     type="submit"
@@ -516,7 +718,7 @@
                                                 </span>
                                             </label>
                                         @endforeach
-                                    @else
+                                    @elseif ($answer->question->question_type === \App\Models\Question::TYPE_MATCHING)
                                         @php
                                             $matchingAnswer = old("answers.{$answer->question_id}", $answer->matching_answer ?? []);
                                             $matchChoices = $answer->question->options->pluck('match_text')->filter()->values();
@@ -548,6 +750,73 @@
                                                 </select>
                                             </div>
                                             @endforeach
+                                    @elseif ($answer->question->question_type === \App\Models\Question::TYPE_DRAG_DROP)
+                                        @php
+                                            $dragDropAnswer = old("answers.{$answer->question_id}", $answer->matching_answer ?? []);
+                                            $dropTargets = $answer->question->options->pluck('match_text')->filter()->shuffle()->values();
+                                        @endphp
+
+                                        <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+                                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Drag choices</div>
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                @foreach ($dropTargets as $dropTarget)
+                                                    <button
+                                                        type="button"
+                                                        draggable="true"
+                                                        class="drag-choice rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-teal-400"
+                                                        @dragstart="setDragValue(@js($dropTarget))"
+                                                        @click="setDragValue(@js($dropTarget))"
+                                                    >
+                                                        {{ $dropTarget }}
+                                                    </button>
+                                                @endforeach
+                                            </div>
+                                            <p class="mt-2 text-xs text-slate-500">Drag a choice into a drop zone, or click a choice and then click a drop zone.</p>
+                                        </div>
+
+                                        @foreach ($answer->question->options as $option)
+                                            <div class="rounded-md border border-gray-200 p-4">
+                                                <div class="rich-content text-sm font-medium text-gray-700">{!! $option->option_text !!}</div>
+                                                @if ($option->image_path)
+                                                    <img
+                                                        src="{{ $option->imageUrl() }}"
+                                                        alt="Option image"
+                                                        class="mt-3 max-h-44 rounded-md border border-gray-200 object-contain"
+                                                    >
+                                                @endif
+
+                                                <input
+                                                    type="hidden"
+                                                    name="answers[{{ $answer->question_id }}][{{ $option->id }}]"
+                                                    value="{{ $dragDropAnswer[$option->id] ?? '' }}"
+                                                    data-drag-group="{{ $answer->question_id }}"
+                                                    data-option-id="{{ $option->id }}"
+                                                    x-ref="dragDrop{{ $answer->question_id }}{{ $option->id }}"
+                                                >
+
+                                                <button
+                                                    type="button"
+                                                    class="drop-zone mt-3 flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                                                    @dragover.prevent
+                                                    @drop.prevent="dropMatch({{ $answer->question_id }}, {{ $option->id }})"
+                                                    @click="dropMatch({{ $answer->question_id }}, {{ $option->id }})"
+                                                >
+                                                    <span
+                                                        class="text-sm font-medium text-slate-700"
+                                                        x-text="dragDropRefresh >= 0 ? ($refs.dragDrop{{ $answer->question_id }}{{ $option->id }}?.value || 'Drop answer here') : 'Drop answer here'"
+                                                    ></span>
+                                                    <span class="text-xs font-semibold uppercase tracking-wide text-teal-700">Drop</span>
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="mt-2 text-xs font-semibold text-red-600 hover:text-red-800"
+                                                    @click="clearDrop({{ $answer->question_id }}, {{ $option->id }})"
+                                                >
+                                                    Clear drop
+                                                </button>
+                                            </div>
+                                        @endforeach
                                     @endif
                                 </div>
 
@@ -626,6 +895,62 @@
                             <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-amber-500"></span> Flagged</div>
                         </div>
                     </aside>
+                </div>
+
+                <div
+                    x-show="calculatorOpen"
+                    x-cloak
+                    x-transition
+                    class="fixed inset-x-3 bottom-3 z-40 sm:inset-x-auto sm:right-5 sm:bottom-5"
+                    aria-live="polite"
+                >
+                    <div class="exam-calculator mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl sm:mx-0">
+                        <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-950">Calculator</h3>
+                                <p class="mt-0.5 text-xs text-slate-500">Use buttons or keyboard</p>
+                            </div>
+                            <button type="button" class="rounded-md p-2 text-slate-500 hover:bg-white hover:text-slate-900" @click="closeCalculator()" aria-label="Close calculator">
+                                <x-icon name="x-circle" />
+                            </button>
+                        </div>
+
+                        <div class="bg-white p-4">
+                            <div
+                                class="exam-calculator-display flex items-end justify-end rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-right font-mono text-3xl font-semibold text-white shadow-inner"
+                                x-text="calculatorDisplay"
+                            ></div>
+
+                            <div class="mt-3 grid grid-cols-4 gap-2">
+                                <button type="button" class="rounded-md bg-red-50 px-3 py-3 text-sm font-bold text-red-700 ring-1 ring-red-100 hover:bg-red-100" @click="clearCalculator()">C</button>
+                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="calculatorBackspace()">Back</button>
+                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator('(')">(</button>
+                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator(')')">)</button>
+
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('7')">7</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('8')">8</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('9')">9</button>
+                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('/')">/</button>
+
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('4')">4</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('5')">5</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('6')">6</button>
+                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('*')">*</button>
+
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('1')">1</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('2')">2</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('3')">3</button>
+                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('-')">-</button>
+
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('0')">0</button>
+                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('.')">.</button>
+                                <button type="button" class="rounded-md bg-slate-100 px-3 py-4 text-lg font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator('%')">%</button>
+                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('+')">+</button>
+
+                                <button type="button" class="col-span-4 rounded-md bg-amber-500 px-3 py-4 text-lg font-bold text-slate-950 hover:bg-amber-400" @click="calculateResult()">=</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div

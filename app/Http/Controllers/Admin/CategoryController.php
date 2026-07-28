@@ -17,6 +17,8 @@ class CategoryController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $categories = Category::query()
             ->with('parent')
             ->withCount(['subcategories', 'questions', 'exams'])
@@ -32,7 +34,7 @@ class CategoryController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'active'))
             ->orderByRaw('parent_id is not null')
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('admin.categories.index', compact('categories'));

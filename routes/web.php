@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\CertificationPackageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -35,6 +36,7 @@ Route::middleware(['auth', 'single.session', 'role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/analytics', AnalyticsController::class)->name('analytics.index');
         Route::delete('/certifications/{certification}/permanent', [CertificationController::class, 'permanentDestroy'])->name('certifications.permanent-destroy');
         Route::get('/certifications/{certification}/packages/create', [CertificationPackageController::class, 'create'])->name('certifications.packages.create');
         Route::post('/certifications/{certification}/packages', [CertificationPackageController::class, 'store'])->name('certifications.packages.store');

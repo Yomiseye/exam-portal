@@ -21,6 +21,9 @@
                 <p class="mt-1 text-sm text-gray-600">
                     Keep the first row as headers. If your workbook has multiple worksheets, you will be asked which sheet to import.
                 </p>
+                <p class="mt-2 text-sm text-gray-600">
+                    Existing sheets that use <span class="font-semibold">domain</span> for People, Process, or Business Environment are still accepted as Eco Domain. For new sheets, use <span class="font-semibold">eco_domain</span> and <span class="font-semibold">performance_domain</span>.
+                </p>
 
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -45,7 +48,7 @@
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">question_type</td>
                                 <td class="px-3 py-2 text-gray-600">Yes</td>
-                                <td class="px-3 py-2 text-gray-600">single_choice, multiple_choice, true_false, matching</td>
+                                <td class="px-3 py-2 text-gray-600">single_choice, multiple_choice, true_false, matching, drag_drop</td>
                             </tr>
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">question</td>
@@ -58,18 +61,38 @@
                                 <td class="px-3 py-2 text-gray-600">easy, medium, hard</td>
                             </tr>
                             <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">lifecycle</td>
+                                <td class="px-3 py-2 text-gray-600">Recommended</td>
+                                <td class="px-3 py-2 text-gray-600">predictive, agile, hybrid</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">eco_domain</td>
+                                <td class="px-3 py-2 text-gray-600">Recommended</td>
+                                <td class="px-3 py-2 text-gray-600">people, process, environment</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">performance_domain</td>
+                                <td class="px-3 py-2 text-gray-600">Recommended</td>
+                                <td class="px-3 py-2 text-gray-600">scope, schedule, resource, finance, risk, stakeholder, governance</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">focus_area</td>
+                                <td class="px-3 py-2 text-gray-600">Recommended</td>
+                                <td class="px-3 py-2 text-gray-600">initiating, planning, executing, monitoring_controlling, closing</td>
+                            </tr>
+                            <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">option_1, option_2...</td>
                                 <td class="px-3 py-2 text-gray-600">Yes</td>
                                 <td class="px-3 py-2 text-gray-600">4, 5</td>
                             </tr>
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">correct_answers</td>
-                                <td class="px-3 py-2 text-gray-600">Except matching</td>
+                                <td class="px-3 py-2 text-gray-600">Except matching and drag_drop</td>
                                 <td class="px-3 py-2 text-gray-600">1 or 1;3</td>
                             </tr>
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">match_1, match_2...</td>
-                                <td class="px-3 py-2 text-gray-600">Matching only</td>
+                                <td class="px-3 py-2 text-gray-600">Matching / drag_drop only</td>
                                 <td class="px-3 py-2 text-gray-600">Abuja, Accra</td>
                             </tr>
                             <tr>

@@ -17,6 +17,8 @@ class ResultController extends Controller
      */
     public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $attempts = Attempt::query()
             ->with(['exam', 'user.retakePermissions'])
             ->when($request->filled('search'), function ($query) use ($request): void {
@@ -33,7 +35,7 @@ class ResultController extends Controller
             ->when($request->filled('exam_id'), fn ($query) => $query->where('exam_id', $request->integer('exam_id')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $exams = Exam::query()

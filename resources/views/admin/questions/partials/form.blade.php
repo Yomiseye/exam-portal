@@ -269,6 +269,60 @@
     </div>
 </div>
 
+<div class="grid gap-6 md:grid-cols-4">
+    <div>
+        <x-input-label for="lifecycle" value="Lifecycle" icon="filter" />
+        <select id="lifecycle" name="lifecycle" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+            <option value="">Choose lifecycle</option>
+            @foreach (\App\Models\Question::LIFECYCLES as $value => $label)
+                <option value="{{ $value }}" @selected(old('lifecycle', $question?->lifecycle) === $value)>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+        <x-input-error class="mt-2" :messages="$errors->get('lifecycle')" />
+    </div>
+
+    <div>
+        <x-input-label for="eco_domain" value="Eco_Domain" icon="tag" />
+        <select id="eco_domain" name="eco_domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+            <option value="">Choose eco domain</option>
+            @foreach (\App\Models\Question::ECO_DOMAINS as $value => $label)
+                <option value="{{ $value }}" @selected(old('eco_domain', $question?->eco_domain) === $value)>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+        <x-input-error class="mt-2" :messages="$errors->get('eco_domain')" />
+    </div>
+
+    <div>
+        <x-input-label for="domain" value="Performance_Domain" icon="tag" />
+        <select id="domain" name="domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+            <option value="">Choose performance domain</option>
+            @foreach (\App\Models\Question::PERFORMANCE_DOMAINS as $value => $label)
+                <option value="{{ $value }}" @selected(old('domain', $question?->domain) === $value)>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+        <x-input-error class="mt-2" :messages="$errors->get('domain')" />
+    </div>
+
+    <div>
+        <x-input-label for="focus_area" value="Focus Area" icon="clipboard-list" />
+        <select id="focus_area" name="focus_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+            <option value="">Choose focus area</option>
+            @foreach (\App\Models\Question::FOCUS_AREAS as $value => $label)
+                <option value="{{ $value }}" @selected(old('focus_area', $question?->focus_area) === $value)>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+        <x-input-error class="mt-2" :messages="$errors->get('focus_area')" />
+    </div>
+</div>
+
 <div>
     <x-input-label for="question_text" value="Question" icon="circle-help" />
     <input type="hidden" id="question_text" name="question_text" x-model="questionText">
@@ -432,7 +486,7 @@
 <div>
     <div class="flex items-center justify-between">
         <x-input-label value="Options" icon="check-circle" />
-        <p class="text-sm text-gray-500" x-text="questionType === 'multiple_choice' ? 'Select every correct answer.' : (questionType === 'matching' ? 'Enter matching pairs.' : 'Select one correct answer.')"></p>
+        <p class="text-sm text-gray-500" x-text="questionType === 'multiple_choice' ? 'Select every correct answer.' : (questionType === 'matching' ? 'Enter matching pairs.' : (questionType === 'drag_drop' ? 'Enter each draggable item and its correct drop target.' : 'Select one correct answer.'))"></p>
     </div>
 
     <div class="mt-3 grid gap-5 lg:grid-cols-2">
@@ -496,11 +550,11 @@
                 </div>
 
                     <input
-                        x-show="questionType === 'matching'"
+                        x-show="questionType === 'matching' || questionType === 'drag_drop'"
                         :name="'options[' + index + '][match_text]'"
                         type="text"
                         x-model="option.match_text"
-                        :placeholder="'Match for item ' + (index + 1)"
+                        :placeholder="questionType === 'drag_drop' ? 'Drop target for item ' + (index + 1) : 'Match for item ' + (index + 1)"
                         class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                     />
 

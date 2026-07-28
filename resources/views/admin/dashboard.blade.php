@@ -61,9 +61,9 @@
                                 Build the test bank, publish exams, assign candidates, and review outcomes.
                             </p>
                         </div>
-                        <a href="{{ route('admin.results.index') }}" class="portal-button-primary shrink-0">
+                        <a href="{{ route('admin.analytics.index') }}" class="portal-button-primary shrink-0">
                             <x-icon name="chart-bar" />
-                            View Results
+                            View Analytics
                         </a>
                     </div>
 
@@ -106,6 +106,14 @@
                                 Certifications
                             </div>
                             <p class="mt-1 text-sm text-gray-500">Publish commercial tracks, packages, prices, and included exams.</p>
+                        </a>
+
+                        <a href="{{ route('admin.analytics.index') }}" class="rounded-md border border-gray-200 bg-white p-4 transition hover:border-teal-200 hover:bg-slate-50">
+                            <div class="inline-flex items-center gap-2 text-sm font-semibold text-gray-950">
+                                <x-icon name="chart-bar" />
+                                Analytics
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">Review pass rates, knowledge gaps, metadata performance, and commonly missed questions.</p>
                         </a>
                     </div>
                 </section>

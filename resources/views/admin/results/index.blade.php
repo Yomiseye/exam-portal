@@ -67,6 +67,11 @@
                 </div>
             </form>
 
+            <div class="mb-6 flex flex-col gap-3 rounded-md border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-500">{{ $attempts->total() }} attempt(s) found.</p>
+                <x-page-size-selector />
+            </div>
+
             <form id="bulk-history-form" method="POST" action="{{ route('admin.results.bulk-destroy') }}" class="mb-6 rounded-md bg-white p-4 shadow-sm">
                 @csrf
                 @method('DELETE')

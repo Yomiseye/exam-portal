@@ -20,6 +20,7 @@
 /public/storage
 /bootstrap/cache/*.php
 /database/*.sqlite
+/deploy
 /storage/app/*
 !/storage/app/.gitignore
 /storage/framework/cache/*

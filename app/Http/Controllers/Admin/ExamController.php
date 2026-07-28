@@ -16,12 +16,15 @@ class ExamController extends Controller
     /**
      * Display a listing of exams.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $perPage = $this->adminPageSize($request);
+
         $exams = Exam::query()
             ->with('categories.parent')
             ->latest()
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
 
         return view('admin.exams.index', compact('exams'));
     }
