@@ -107,9 +107,99 @@
             user-select: none;
         }
 
+        .exam-calculator-card {
+            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        }
+
+        .exam-calculator-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.875rem 1rem 0.25rem;
+        }
+
+        .exam-calculator-tab {
+            color: #0284c7;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .exam-calculator-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .exam-calculator-dots span {
+            height: 0.4rem;
+            width: 0.4rem;
+            border-radius: 999px;
+            background: #cbd5e1;
+        }
+
+        .exam-calculator-screen {
+            padding: 1.5rem 1rem 1.25rem;
+            text-align: right;
+        }
+
+        .exam-calculator-expression {
+            min-height: 1rem;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            line-height: 1rem;
+        }
+
         .exam-calculator-display {
-            min-height: 3.5rem;
+            min-height: 3rem;
             word-break: break-all;
+            color: #0f172a;
+            font-size: 2.5rem;
+            font-weight: 300;
+            line-height: 1.1;
+        }
+
+        .exam-calculator-shell {
+            display: block;
+        }
+
+        .exam-calculator-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.35rem;
+            padding: 0.25rem 0.75rem 1rem;
+        }
+
+        .exam-calculator-key {
+            display: flex;
+            min-height: 3rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            color: #334155;
+            font-size: 1.35rem;
+            font-weight: 400;
+            line-height: 1;
+            transition: background-color 140ms ease, color 140ms ease, transform 80ms ease;
+        }
+
+        .exam-calculator-key:hover {
+            background: #f1f5f9;
+        }
+
+        .exam-calculator-key:active {
+            transform: translateY(1px);
+        }
+
+        .exam-calculator-key-muted {
+            color: #64748b;
+        }
+
+        .exam-calculator-key-danger {
+            color: #dc2626;
+        }
+
+        .exam-calculator-key-operator {
+            color: #0284c7;
+            font-weight: 650;
         }
     </style>
 
@@ -535,15 +625,15 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
+                            <a
+                                href="#exam-calculator"
                                 class="portal-button-secondary"
-                                @click.prevent="calculatorOpen = true"
-                                aria-label="Open calculator"
+                                data-calculator-toggle
+                                aria-label="Go to calculator"
                             >
                                 <x-icon name="calculator" />
                                 Calculator
-                            </button>
+                            </a>
 
                             @if ($attempt->exam->allow_pause)
                                 <button
@@ -862,7 +952,58 @@
                         </div>
                     </section>
 
-                    <aside class="portal-panel p-4 lg:sticky lg:top-28">
+                    <aside class="space-y-4 lg:sticky lg:top-28">
+                        <div
+                            id="exam-calculator"
+                            data-exam-calculator
+                            class="exam-calculator-shell portal-panel overflow-hidden"
+                            aria-live="polite"
+                        >
+                            <div class="exam-calculator exam-calculator-card">
+                                <div class="exam-calculator-top">
+                                    <span class="exam-calculator-tab">Calculator</span>
+                                    <span class="exam-calculator-dots" aria-hidden="true">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </span>
+                                </div>
+
+                                <div class="exam-calculator-screen">
+                                    <div class="exam-calculator-expression" data-calculator-expression>Ready</div>
+                                    <div class="exam-calculator-display" data-calculator-display x-text="calculatorDisplay">0</div>
+                                </div>
+
+                                <div class="exam-calculator-grid">
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-danger" @click="calculatorBackspace()" data-calculator-action="backspace">C</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-muted" @click="clearCalculator()" data-calculator-action="clear">AC</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-muted" @click="pressCalculator('%')" data-calculator-value="%">%</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="pressCalculator('/')" data-calculator-value="/">/</button>
+
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('7')" data-calculator-value="7">7</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('8')" data-calculator-value="8">8</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('9')" data-calculator-value="9">9</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="pressCalculator('*')" data-calculator-value="*">*</button>
+
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('4')" data-calculator-value="4">4</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('5')" data-calculator-value="5">5</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('6')" data-calculator-value="6">6</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="pressCalculator('-')" data-calculator-value="-">-</button>
+
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('1')" data-calculator-value="1">1</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('2')" data-calculator-value="2">2</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('3')" data-calculator-value="3">3</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="pressCalculator('+')" data-calculator-value="+">+</button>
+
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="pressCalculator('(')" data-calculator-action="parentheses">()</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('0')" data-calculator-value="0">0</button>
+                                    <button type="button" class="exam-calculator-key" @click="pressCalculator('.')" data-calculator-value=".">.</button>
+                                    <button type="button" class="exam-calculator-key exam-calculator-key-operator" @click="calculateResult()" data-calculator-action="equals">=</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="portal-panel p-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-semibold text-gray-900">Question Map</h3>
                             <span class="text-xs text-gray-500"><span x-text="answeredCount()"></span> answered</span>
@@ -894,65 +1035,9 @@
                             <div class="flex items-center gap-2"><span class="h-3 w-3 rounded bg-white ring-1 ring-slate-200"></span> Unanswered</div>
                             <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-amber-500"></span> Flagged</div>
                         </div>
+                        </div>
                     </aside>
                 </div>
-
-                <div
-                    x-show="calculatorOpen"
-                    x-cloak
-                    x-transition
-                    class="fixed inset-x-3 bottom-3 z-40 sm:inset-x-auto sm:right-5 sm:bottom-5"
-                    aria-live="polite"
-                >
-                    <div class="exam-calculator mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl sm:mx-0">
-                        <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-                            <div>
-                                <h3 class="text-sm font-semibold text-slate-950">Calculator</h3>
-                                <p class="mt-0.5 text-xs text-slate-500">Use buttons or keyboard</p>
-                            </div>
-                            <button type="button" class="rounded-md p-2 text-slate-500 hover:bg-white hover:text-slate-900" @click="closeCalculator()" aria-label="Close calculator">
-                                <x-icon name="x-circle" />
-                            </button>
-                        </div>
-
-                        <div class="bg-white p-4">
-                            <div
-                                class="exam-calculator-display flex items-end justify-end rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-right font-mono text-3xl font-semibold text-white shadow-inner"
-                                x-text="calculatorDisplay"
-                            ></div>
-
-                            <div class="mt-3 grid grid-cols-4 gap-2">
-                                <button type="button" class="rounded-md bg-red-50 px-3 py-3 text-sm font-bold text-red-700 ring-1 ring-red-100 hover:bg-red-100" @click="clearCalculator()">C</button>
-                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="calculatorBackspace()">Back</button>
-                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator('(')">(</button>
-                                <button type="button" class="rounded-md bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator(')')">)</button>
-
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('7')">7</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('8')">8</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('9')">9</button>
-                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('/')">/</button>
-
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('4')">4</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('5')">5</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('6')">6</button>
-                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('*')">*</button>
-
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('1')">1</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('2')">2</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('3')">3</button>
-                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('-')">-</button>
-
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('0')">0</button>
-                                <button type="button" class="rounded-md bg-white px-3 py-4 text-lg font-bold text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50" @click="pressCalculator('.')">.</button>
-                                <button type="button" class="rounded-md bg-slate-100 px-3 py-4 text-lg font-bold text-slate-800 hover:bg-slate-200" @click="pressCalculator('%')">%</button>
-                                <button type="button" class="rounded-md bg-teal-700 px-3 py-4 text-lg font-bold text-white hover:bg-teal-800" @click="pressCalculator('+')">+</button>
-
-                                <button type="button" class="col-span-4 rounded-md bg-amber-500 px-3 py-4 text-lg font-bold text-slate-950 hover:bg-amber-400" @click="calculateResult()">=</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div
                     x-show="submitConfirm"
                     x-cloak
