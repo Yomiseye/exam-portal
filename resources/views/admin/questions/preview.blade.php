@@ -46,11 +46,43 @@
                         <span class="inline-flex w-fit rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
                             {{ $question->focusAreaLabel() }}
                         </span>
+                        @if ($question->knowledge_area)
+                            <span class="inline-flex w-fit rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                                {{ $question->knowledgeAreaLabel() }}
+                            </span>
+                        @endif
+                        @if ($question->perspective)
+                            <span class="inline-flex w-fit rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                                {{ $question->perspectiveLabel() }}
+                            </span>
+                        @endif
+                        @if ($question->cognitive_level)
+                            <span class="inline-flex w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-700">
+                                {{ $question->cognitiveLevelLabel() }}
+                            </span>
+                        @endif
                         <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide {{ $question->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">
                             {{ $question->is_active ? 'Active' : 'Inactive' }}
                         </span>
                     </div>
                 </div>
+
+                @if ($question->task || $question->technique)
+                    <div class="mt-4 grid gap-3 rounded-md border border-cyan-100 bg-cyan-50/70 p-4 text-sm text-cyan-950 sm:grid-cols-2">
+                        @if ($question->task)
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-cyan-700">CBAP Task</div>
+                                <div class="mt-1">{{ $question->task }}</div>
+                            </div>
+                        @endif
+                        @if ($question->technique)
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-cyan-700">Technique</div>
+                                <div class="mt-1">{{ $question->technique }}</div>
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 @if ($question->image_path)
                     <div class="mt-5">

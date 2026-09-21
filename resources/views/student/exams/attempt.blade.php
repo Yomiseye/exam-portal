@@ -15,6 +15,9 @@
                 || filled($answer->matching_answer),
         ];
     });
+    $flagStates = $attempt->answers->values()->mapWithKeys(fn ($answer, $index) => [
+        $index => (bool) $answer->is_flagged,
+    ]);
 @endphp
 
 <x-app-layout>
@@ -223,7 +226,7 @@
                     current: {{ $initialQuestionIndex }},
                     total: {{ $attempt->answers->count() }},
                     answered: @js($answerStates),
-                    flagged: {},
+                    flagged: @js($flagStates),
                     saving: false,
                     savedAt: '',
                     expiresAt: new Date('{{ $attempt->expires_at->toIso8601String() }}').getTime(),
@@ -556,8 +559,33 @@
                         this.current = Math.min(Math.max(index, 0), this.total - 1);
                         this.saveProgress();
                     },
-                    toggleFlag(index) {
+                    async toggleFlag(index, questionId) {
                         this.flagged[index] = ! this.flagged[index];
+                        this.saving = true;
+
+                        const response = await fetch('{{ route('student.attempts.flags.save', $attempt) }}', {
+                            method: 'PATCH',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            },
+                            body: JSON.stringify({
+                                question_id: questionId,
+                                is_flagged: this.flagged[index],
+                            }),
+                        });
+
+                        if (response.status === 409) {
+                            const data = await response.json();
+
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            }
+                        }
+
+                        this.saving = false;
+                        this.savedAt = 'Saved';
                     },
                     confirmSubmit() {
                         if (this.unansweredCount() === 0) {
@@ -736,10 +764,15 @@
                                         type="button"
                                         class="portal-button-secondary min-h-0 px-3 py-2 text-xs"
                                         :class="flagged[{{ $loop->index }}] ? 'border-amber-300 bg-amber-50 text-amber-800' : ''"
-                                        @click="toggleFlag({{ $loop->index }})"
+                                        @click="toggleFlag({{ $loop->index }}, {{ $answer->question_id }})"
                                     >
                                         <span x-text="flagged[{{ $loop->index }}] ? 'Flagged' : 'Flag for Review'"></span>
                                     </button>
+                                    <input
+                                        type="hidden"
+                                        name="flags[{{ $answer->question_id }}]"
+                                        :value="flagged[{{ $loop->index }}] ? '1' : '0'"
+                                    >
                                 </div>
 
                                 <div class="rich-content mt-5 text-base leading-7 text-gray-950">{!! $answer->question->question_text !!}</div>

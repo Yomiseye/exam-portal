@@ -37,6 +37,7 @@ Route::middleware(['auth', 'single.session', 'role:admin'])
     ->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
         Route::get('/analytics', AnalyticsController::class)->name('analytics.index');
+        Route::get('/analytics/export/{report}', [AnalyticsController::class, 'export'])->name('analytics.export');
         Route::delete('/certifications/{certification}/permanent', [CertificationController::class, 'permanentDestroy'])->name('certifications.permanent-destroy');
         Route::get('/certifications/{certification}/packages/create', [CertificationPackageController::class, 'create'])->name('certifications.packages.create');
         Route::post('/certifications/{certification}/packages', [CertificationPackageController::class, 'store'])->name('certifications.packages.store');
@@ -48,7 +49,7 @@ Route::middleware(['auth', 'single.session', 'role:admin'])
         Route::patch('/student-groups/{student_group}/activate', [StudentGroupController::class, 'activate'])->name('student-groups.activate');
         Route::delete('/student-groups/{student_group}/permanent', [StudentGroupController::class, 'permanentDestroy'])->name('student-groups.permanent-destroy');
         Route::post('/student-groups/{student_group}/assignments', [StudentGroupController::class, 'assignExam'])->name('student-groups.assignments.store');
-        Route::resource('student-groups', StudentGroupController::class)->except(['show']);
+        Route::resource('student-groups', StudentGroupController::class);
         Route::patch('/students/{student}/activate', [StudentController::class, 'activate'])->name('students.activate');
         Route::patch('/students/{student}/deactivate', [StudentController::class, 'deactivate'])->name('students.deactivate');
         Route::patch('/students/{student}/remove-group', [StudentController::class, 'removeFromGroup'])->name('students.remove-group');
@@ -69,7 +70,7 @@ Route::middleware(['auth', 'single.session', 'role:admin'])
         Route::delete('/questions/{question}/permanent', [QuestionController::class, 'permanentDestroy'])->name('questions.permanent-destroy');
         Route::resource('questions', QuestionController::class)->except(['show']);
         Route::delete('/exams/{exam}/permanent', [ExamController::class, 'permanentDestroy'])->name('exams.permanent-destroy');
-        Route::resource('exams', ExamController::class)->except(['show']);
+        Route::resource('exams', ExamController::class);
         Route::get('/results', [ResultController::class, 'index'])->name('results.index');
         Route::delete('/results/bulk-clear', [ResultController::class, 'bulkDestroy'])->name('results.bulk-destroy');
         Route::get('/results/{attempt}', [ResultController::class, 'show'])->name('results.show');
@@ -88,6 +89,7 @@ Route::middleware(['auth', 'single.session', 'role:student'])
         Route::patch('/attempts/{attempt}/pause', [StudentExamController::class, 'pause'])->name('attempts.pause');
         Route::patch('/attempts/{attempt}/progress', [StudentExamController::class, 'saveProgress'])->name('attempts.progress.save');
         Route::patch('/attempts/{attempt}/answers', [StudentExamController::class, 'saveAnswer'])->name('attempts.answers.save');
+        Route::patch('/attempts/{attempt}/flags', [StudentExamController::class, 'saveFlag'])->name('attempts.flags.save');
         Route::post('/attempts/{attempt}', [StudentExamController::class, 'submit'])->name('attempts.submit');
         Route::get('/attempts/{attempt}/result', [StudentExamController::class, 'result'])->name('attempts.result');
     });

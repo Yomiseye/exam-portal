@@ -48,6 +48,21 @@
                         {{ $errors->first() }}
                     </div>
                 @endif
+
+                <div class="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+                    <a href="{{ route('admin.analytics.export', array_merge(['report' => 'summary'], request()->query())) }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                        <x-icon name="upload" />
+                        Export Summary
+                    </a>
+                    <a href="{{ route('admin.analytics.export', array_merge(['report' => 'students'], request()->query())) }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                        <x-icon name="users" />
+                        Export Students
+                    </a>
+                    <a href="{{ route('admin.analytics.export', array_merge(['report' => 'missed-questions'], request()->query())) }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                        <x-icon name="circle-help" />
+                        Export Missed Questions
+                    </a>
+                </div>
             </section>
 
             <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -218,6 +233,57 @@
                                 <p class="text-sm text-gray-500">No missed questions for this filter.</p>
                             @endforelse
                         </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel p-5">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-950">Student Performance</h3>
+                            <p class="mt-1 text-sm text-gray-500">Per-student attempt volume, score quality, and pass rate for the selected filter.</p>
+                        </div>
+                        <a href="{{ route('admin.analytics.export', array_merge(['report' => 'students'], request()->query())) }}" class="portal-button-secondary text-xs uppercase tracking-widest">
+                            <x-icon name="upload" />
+                            Export CSV
+                        </a>
+                    </div>
+
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Student</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Group</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Attempts</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Average</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Best</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Latest</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Pass Rate</th>
+                                    <th class="px-3 py-2 text-left font-semibold text-gray-500">Latest Attempt</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @forelse ($studentRows as $row)
+                                    <tr>
+                                        <td class="px-3 py-3">
+                                            <div class="font-medium text-gray-900">{{ $row['student'] }}</div>
+                                            <div class="mt-0.5 text-xs text-gray-500">{{ $row['email'] }}</div>
+                                        </td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['group'] }}</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['attempts'] }}</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['average'] }}%</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['best'] }}%</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['latest_score'] }}%</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['pass_rate'] }}%</td>
+                                        <td class="px-3 py-3 text-gray-600">{{ $row['latest_attempt_date'] }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="px-3 py-6 text-center text-gray-500">No student performance data for this filter.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             @endif

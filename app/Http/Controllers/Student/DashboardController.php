@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attempt;
 use App\Models\Exam;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -86,6 +88,81 @@ class DashboardController extends Controller
         return view('student.dashboard', [
             'exams' => $exams,
             'attempts' => $attempts,
+            'performanceTrends' => $this->performanceTrends($attempts),
         ]);
+    }
+
+    /**
+     * @param  Collection<int, Attempt>  $attempts
+     * @return array{summary: array{completed: int, average: int, best: int, latest: int|null, delta: int|null, direction: string}, exams: array<int, array{exam: string, attempts: int, average: int, latest: int, previous: int|null, delta: int|null, direction: string, recent: array<int, array{attempt_number: int, percentage: int, status: string, date: string}>}>}
+     */
+    private function performanceTrends(Collection $attempts): array
+    {
+        $completed = $attempts
+            ->whereIn('status', ['passed', 'failed'])
+            ->sortBy('started_at')
+            ->values();
+
+        $latest = $completed->last();
+        $first = $completed->first();
+        $best = (int) ($completed->max('percentage') ?? 0);
+        $average = $completed->isNotEmpty() ? (int) round($completed->avg('percentage')) : 0;
+        $delta = $first && $latest && $completed->count() > 1
+            ? (int) $latest->percentage - (int) $first->percentage
+            : null;
+
+        return [
+            'summary' => [
+                'completed' => $completed->count(),
+                'average' => $average,
+                'best' => $best,
+                'latest' => $latest?->percentage,
+                'delta' => $delta,
+                'direction' => $this->trendDirection($delta),
+            ],
+            'exams' => $completed
+                ->groupBy('exam_id')
+                ->map(function (Collection $examAttempts): array {
+                    $ordered = $examAttempts->sortBy('started_at')->values();
+                    $latest = $ordered->last();
+                    $previous = $ordered->count() > 1 ? $ordered->get($ordered->count() - 2) : null;
+                    $delta = $previous && $latest
+                        ? (int) $latest->percentage - (int) $previous->percentage
+                        : null;
+
+                    return [
+                        'exam' => $latest->exam?->title ?? 'Unknown exam',
+                        'attempts' => $ordered->count(),
+                        'average' => (int) round($ordered->avg('percentage')),
+                        'latest' => (int) $latest->percentage,
+                        'previous' => $previous?->percentage,
+                        'delta' => $delta,
+                        'direction' => $this->trendDirection($delta),
+                        'recent' => $ordered
+                            ->take(-6)
+                            ->map(fn (Attempt $attempt) => [
+                                'attempt_number' => (int) $attempt->attempt_number,
+                                'percentage' => (int) $attempt->percentage,
+                                'status' => $attempt->status,
+                                'date' => $attempt->started_at?->format('M j'),
+                            ])
+                            ->values()
+                            ->all(),
+                    ];
+                })
+                ->sortByDesc(fn (array $row) => $row['attempts'])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function trendDirection(?int $delta): string
+    {
+        return match (true) {
+            $delta === null => 'steady',
+            $delta > 0 => 'up',
+            $delta < 0 => 'down',
+            default => 'steady',
+        };
     }
 }

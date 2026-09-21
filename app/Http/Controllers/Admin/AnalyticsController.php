@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
 use App\Models\Exam;
-use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\View\View;
 
 class AnalyticsController extends Controller
@@ -17,6 +17,104 @@ class AnalyticsController extends Controller
      * Show administrative reporting and analytics.
      */
     public function __invoke(Request $request): View
+    {
+        [$filters, $attempts] = $this->filteredAttempts($request);
+
+        $answers = $attempts
+            ->flatMap(fn (Attempt $attempt) => $attempt->answers);
+
+        $exams = Exam::query()
+            ->orderBy('title')
+            ->get();
+
+        return view('admin.analytics.index', [
+            'attempts' => $attempts,
+            'exams' => $exams,
+            'filters' => $filters,
+            'summary' => $this->summary($attempts),
+            'statusRows' => $this->statusRows($attempts),
+            'examRows' => $this->examRows($attempts),
+            'groupRows' => $this->groupRows($attempts),
+            'studentRows' => $this->studentRows($attempts),
+            'metadataSections' => $this->metadataSections($answers),
+            'missedQuestions' => $this->missedQuestions($answers),
+        ]);
+    }
+
+    public function export(Request $request, string $report): StreamedResponse
+    {
+        abort_unless(in_array($report, ['summary', 'students', 'missed-questions'], true), 404);
+
+        [, $attempts] = $this->filteredAttempts($request);
+        $answers = $attempts->flatMap(fn (Attempt $attempt) => $attempt->answers);
+        $filename = 'testportal-'.$report.'-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($report, $attempts, $answers): void {
+            $handle = fopen('php://output', 'w');
+
+            if ($report === 'summary') {
+                $summary = $this->summary($attempts);
+                fputcsv($handle, ['Metric', 'Value']);
+                fputcsv($handle, ['Submitted Attempts', $summary['attempts']]);
+                fputcsv($handle, ['Passed', $summary['passed']]);
+                fputcsv($handle, ['Failed', $summary['failed']]);
+                fputcsv($handle, ['Pass Rate', $summary['pass_rate'].'%']);
+                fputcsv($handle, ['Average Score', $summary['average_score'].'%']);
+                fputcsv($handle, []);
+                fputcsv($handle, ['Exam', 'Attempts', 'Average', 'Pass Rate']);
+
+                foreach ($this->examRows($attempts) as $row) {
+                    fputcsv($handle, [$row['label'], $row['attempts'], $row['average'].'%', $row['pass_rate'].'%']);
+                }
+
+                fputcsv($handle, []);
+                fputcsv($handle, ['Group', 'Attempts', 'Average', 'Pass Rate']);
+
+                foreach ($this->groupRows($attempts) as $row) {
+                    fputcsv($handle, [$row['label'], $row['attempts'], $row['average'].'%', $row['pass_rate'].'%']);
+                }
+            }
+
+            if ($report === 'students') {
+                fputcsv($handle, ['Student', 'Email', 'Group', 'Attempts', 'Average Score', 'Best Score', 'Latest Score', 'Pass Rate', 'Latest Attempt Date']);
+
+                foreach ($this->studentRows($attempts) as $row) {
+                    fputcsv($handle, [
+                        $row['student'],
+                        $row['email'],
+                        $row['group'],
+                        $row['attempts'],
+                        $row['average'].'%',
+                        $row['best'].'%',
+                        $row['latest_score'].'%',
+                        $row['pass_rate'].'%',
+                        $row['latest_attempt_date'],
+                    ]);
+                }
+            }
+
+            if ($report === 'missed-questions') {
+                fputcsv($handle, ['Question ID', 'Question', 'Missed', 'Attempts', 'Miss Rate']);
+
+                foreach ($this->missedQuestions($answers) as $row) {
+                    fputcsv($handle, [
+                        $row['question_id'],
+                        $row['question'],
+                        $row['missed'],
+                        $row['attempts'],
+                        $row['miss_rate'].'%',
+                    ]);
+                }
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: Collection<int, Attempt>}
+     */
+    private function filteredAttempts(Request $request): array
     {
         $filters = $request->validate([
             'exam_id' => ['nullable', 'integer', 'exists:exams,id'],
@@ -37,24 +135,7 @@ class AnalyticsController extends Controller
             ->latest('submitted_at')
             ->get();
 
-        $answers = $attempts
-            ->flatMap(fn (Attempt $attempt) => $attempt->answers);
-
-        $exams = Exam::query()
-            ->orderBy('title')
-            ->get();
-
-        return view('admin.analytics.index', [
-            'attempts' => $attempts,
-            'exams' => $exams,
-            'filters' => $filters,
-            'summary' => $this->summary($attempts),
-            'statusRows' => $this->statusRows($attempts),
-            'examRows' => $this->examRows($attempts),
-            'groupRows' => $this->groupRows($attempts),
-            'metadataSections' => $this->metadataSections($answers),
-            'missedQuestions' => $this->missedQuestions($answers),
-        ]);
+        return [$filters, $attempts];
     }
 
     /**
@@ -139,6 +220,37 @@ class AnalyticsController extends Controller
                 ];
             })
             ->sortByDesc('attempts')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, Attempt>  $attempts
+     * @return array<int, array{student: string, email: string, group: string, attempts: int, average: float|int, best: int, latest_score: int, pass_rate: int, latest_attempt_date: string}>
+     */
+    private function studentRows(Collection $attempts): array
+    {
+        return $attempts
+            ->groupBy('user_id')
+            ->map(function (Collection $studentAttempts): array {
+                $total = $studentAttempts->count();
+                $passed = $studentAttempts->where('status', 'passed')->count();
+                $latestAttempt = $studentAttempts->sortByDesc('submitted_at')->first();
+                $student = $latestAttempt?->user;
+
+                return [
+                    'student' => $student?->name ?? 'Unknown student',
+                    'email' => $student?->email ?? '',
+                    'group' => $student?->studentGroup?->name ?? 'No group',
+                    'attempts' => $total,
+                    'average' => $total > 0 ? round($studentAttempts->avg('percentage'), 1) : 0,
+                    'best' => (int) ($studentAttempts->max('percentage') ?? 0),
+                    'latest_score' => (int) ($latestAttempt?->percentage ?? 0),
+                    'pass_rate' => $total > 0 ? (int) round(($passed / $total) * 100) : 0,
+                    'latest_attempt_date' => $latestAttempt?->submitted_at?->format('M j, Y g:i A') ?? '',
+                ];
+            })
+            ->sortByDesc('latest_attempt_date')
             ->values()
             ->all();
     }

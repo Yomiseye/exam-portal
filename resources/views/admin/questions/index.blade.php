@@ -111,6 +111,63 @@
                         </select>
                     </div>
 
+                    <div>
+                        <x-input-label for="knowledge_area" value="Knowledge Area" icon="clipboard-list" />
+                        <select id="knowledge_area" name="knowledge_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            <option value="">All knowledge areas</option>
+                            @foreach (\App\Models\Question::CBAP_KNOWLEDGE_AREAS as $value => $label)
+                                <option value="{{ $value }}" @selected(request('knowledge_area') === $value)>{{ $label }}</option>
+                            @endforeach
+                            <option value="unclassified" @selected(request('knowledge_area') === 'unclassified')>Unclassified</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <x-input-label for="perspective" value="Perspective" icon="filter" />
+                        <select id="perspective" name="perspective" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            <option value="">All perspectives</option>
+                            @foreach (\App\Models\Question::CBAP_PERSPECTIVES as $value => $label)
+                                <option value="{{ $value }}" @selected(request('perspective') === $value)>{{ $label }}</option>
+                            @endforeach
+                            <option value="unclassified" @selected(request('perspective') === 'unclassified')>Unclassified</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
+                        <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            <option value="">All cognitive levels</option>
+                            @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
+                                <option value="{{ $value }}" @selected(request('cognitive_level') === $value)>{{ $label }}</option>
+                            @endforeach
+                            <option value="unclassified" @selected(request('cognitive_level') === 'unclassified')>Unclassified</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <x-input-label for="task" value="Task" icon="file-text" />
+                        <x-text-input
+                            id="task"
+                            name="task"
+                            type="search"
+                            class="mt-1 block w-full"
+                            :value="request('task')"
+                            placeholder="Task keyword"
+                        />
+                    </div>
+
+                    <div>
+                        <x-input-label for="technique" value="Technique" icon="file-text" />
+                        <x-text-input
+                            id="technique"
+                            name="technique"
+                            type="search"
+                            class="mt-1 block w-full"
+                            :value="request('technique')"
+                            placeholder="Technique keyword"
+                        />
+                    </div>
+
                     <div class="flex items-end gap-3">
                         <x-primary-button>
                             <x-icon name="filter" />
@@ -214,6 +271,24 @@
                                         <x-icon name="clipboard-list" class="h-3 w-3" />
                                         {{ $question->focusAreaLabel() }}
                                     </span>
+                                    @if ($question->knowledge_area)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">
+                                            <x-icon name="award" class="h-3 w-3" />
+                                            {{ $question->knowledgeAreaLabel() }}
+                                        </span>
+                                    @endif
+                                    @if ($question->perspective)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                                            <x-icon name="filter" class="h-3 w-3" />
+                                            {{ $question->perspectiveLabel() }}
+                                        </span>
+                                    @endif
+                                    @if ($question->cognitive_level)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                            <x-icon name="filter" class="h-3 w-3" />
+                                            {{ $question->cognitiveLevelLabel() }}
+                                        </span>
+                                    @endif
                                 </div>
 
                                 <div class="mt-3 text-sm font-medium leading-6 text-gray-950">
@@ -224,6 +299,17 @@
                                     <span class="font-medium text-gray-700">Category:</span>
                                     {{ $question->category->fullName() }}
                                 </div>
+
+                                @if ($question->task || $question->technique)
+                                    <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                                        @if ($question->task)
+                                            <span><span class="font-medium text-gray-700">Task:</span> {{ $question->task }}</span>
+                                        @endif
+                                        @if ($question->technique)
+                                            <span><span class="font-medium text-gray-700">Technique:</span> {{ $question->technique }}</span>
+                                        @endif
+                                    </div>
+                                @endif
 
                                 @if ($question->image_path || $question->explanation_image_path)
                                     <div class="mt-3 flex flex-wrap gap-1.5">

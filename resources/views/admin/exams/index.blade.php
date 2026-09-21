@@ -78,7 +78,12 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
+                                        <a href="{{ route('admin.exams.show', $exam) }}" class="inline-flex items-center gap-1.5 text-xs text-teal-700 hover:text-teal-900">
+                                            <x-icon name="eye" class="h-3.5 w-3.5" />
+                                            Assignments
+                                        </a>
+
+                                        <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900 ms-4">
                                             <x-icon name="pencil" class="h-3.5 w-3.5" />
                                             Edit
                                         </a>

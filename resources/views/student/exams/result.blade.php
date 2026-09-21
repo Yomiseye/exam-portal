@@ -122,11 +122,28 @@
                     x-data="{
                         current: 0,
                         filter: 'all',
-                        answers: @js($attempt->answers->values()->map(fn ($answer) => ['correct' => (bool) $answer->is_correct])->all()),
+                        answers: @js($attempt->answers->values()->map(fn ($answer) => [
+                            'correct' => (bool) $answer->is_correct,
+                            'flagged' => (bool) $answer->is_flagged,
+                        ])->all()),
                         visibleIndexes() {
                             return this.answers
                                 .map((answer, index) => ({ answer, index }))
-                                .filter(({ answer }) => this.filter === 'all' || (this.filter === 'incorrect' ? ! answer.correct : answer.correct))
+                                .filter(({ answer }) => {
+                                    if (this.filter === 'incorrect') {
+                                        return ! answer.correct;
+                                    }
+
+                                    if (this.filter === 'correct') {
+                                        return answer.correct;
+                                    }
+
+                                    if (this.filter === 'flagged') {
+                                        return answer.flagged;
+                                    }
+
+                                    return true;
+                                })
                                 .map(({ index }) => index);
                         },
                         visibleCount() {
@@ -213,6 +230,14 @@
                                     >
                                         Correct
                                     </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"
+                                        :class="filter === 'flagged' ? 'border-amber-600 bg-amber-500 text-white' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'"
+                                        @click="setFilter('flagged')"
+                                    >
+                                        Flagged
+                                    </button>
                                 </div>
                             </div>
 
@@ -228,9 +253,12 @@
                                                 ! visibleIndexes().includes({{ $loop->index }}) ? 'hidden' : ''
                                             ]"
                                             @click="jumpTo({{ $loop->index }})"
-                                            title="Question {{ $loop->iteration }} - {{ $navAnswer->is_correct ? 'Correct' : 'Incorrect' }}"
+                                            title="Question {{ $loop->iteration }} - {{ $navAnswer->is_correct ? 'Correct' : 'Incorrect' }}{{ $navAnswer->is_flagged ? ' - Flagged' : '' }}"
                                         >
                                             {{ $loop->iteration }}
+                                            @if ($navAnswer->is_flagged)
+                                                <span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white"></span>
+                                            @endif
                                         </button>
                                     @endforeach
                                 </div>
@@ -272,9 +300,16 @@
                                     @endif
                                 </div>
 
-                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $answer->is_correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                    {{ $answer->is_correct ? 'Correct' : 'Incorrect' }}
-                                </span>
+                                <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $answer->is_correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                        {{ $answer->is_correct ? 'Correct' : 'Incorrect' }}
+                                    </span>
+                                    @if ($answer->is_flagged)
+                                        <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                                            Flagged
+                                        </span>
+                                    @endif
+                                </div>
                             </div>
 
                             <div class="mt-4 text-sm text-gray-700">

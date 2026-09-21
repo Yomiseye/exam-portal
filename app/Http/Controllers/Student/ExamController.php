@@ -231,6 +231,46 @@ class ExamController extends Controller
     }
 
     /**
+     * Persist whether a question is flagged for review.
+     */
+    public function saveFlag(Request $request, Attempt $attempt): JsonResponse
+    {
+        $this->authorizeAttempt($attempt);
+
+        abort_unless($attempt->status === 'in_progress', 403);
+
+        if ($attempt->isPaused()) {
+            return response()->json([
+                'message' => 'This attempt is paused.',
+                'redirect' => route('student.dashboard'),
+            ], 409);
+        }
+
+        if ($attempt->isExpired()) {
+            $this->finalizeAttempt($attempt);
+
+            return response()->json([
+                'message' => 'This attempt has expired and was submitted.',
+                'redirect' => route('student.attempts.result', $attempt),
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'question_id' => ['required', 'integer'],
+            'is_flagged' => ['required', 'boolean'],
+        ]);
+
+        $attempt->answers()
+            ->where('question_id', $validated['question_id'])
+            ->firstOrFail()
+            ->update([
+                'is_flagged' => (bool) $validated['is_flagged'],
+            ]);
+
+        return response()->json(['saved' => true]);
+    }
+
+    /**
      * Persist the question the student is currently viewing.
      */
     public function saveProgress(Request $request, Attempt $attempt): JsonResponse
@@ -280,6 +320,8 @@ class ExamController extends Controller
 
         $validator = Validator::make($request->all(), [
             'answers' => ['nullable', 'array'],
+            'flags' => ['nullable', 'array'],
+            'flags.*' => ['nullable', 'boolean'],
             'submit_unanswered' => ['nullable', 'boolean'],
         ]);
 
@@ -306,7 +348,7 @@ class ExamController extends Controller
 
         $validator->validate();
 
-        $this->finalizeAttempt($attempt, $request->input('answers', []));
+        $this->finalizeAttempt($attempt, $request->input('answers', []), $request->input('flags', []));
 
         return redirect()->route('student.attempts.result', $attempt);
     }
@@ -375,6 +417,7 @@ class ExamController extends Controller
     private function analyticsRows(Attempt $attempt, callable $classifier): array
     {
         return $attempt->answers
+            ->filter(fn (AttemptAnswer $answer) => ! $this->isUnclassifiedAnalyticsKey($classifier($answer)[0]))
             ->groupBy(fn (AttemptAnswer $answer) => $classifier($answer)[0])
             ->map(function ($answers) use ($classifier): array {
                 $firstAnswer = $answers->first();
@@ -393,6 +436,11 @@ class ExamController extends Controller
             ->sortBy([['percentage', 'desc'], ['label', 'asc']])
             ->values()
             ->all();
+    }
+
+    private function isUnclassifiedAnalyticsKey(?string $key): bool
+    {
+        return blank($key) || strtolower(trim($key)) === 'unclassified';
     }
 
     private function analyticsStatus(int $percentage): string
@@ -414,11 +462,11 @@ class ExamController extends Controller
      *
      * @param  array<int|string, mixed>  $submittedAnswers
      */
-    private function finalizeAttempt(Attempt $attempt, array $submittedAnswers = []): void
+    private function finalizeAttempt(Attempt $attempt, array $submittedAnswers = [], array $submittedFlags = []): void
     {
         $attempt->loadMissing('answers.question.options', 'exam');
 
-        DB::transaction(function () use ($attempt, $submittedAnswers): void {
+        DB::transaction(function () use ($attempt, $submittedAnswers, $submittedFlags): void {
             $score = 0;
 
             foreach ($attempt->answers as $answer) {
@@ -435,6 +483,9 @@ class ExamController extends Controller
 
                 $answer->update([
                     'is_correct' => $isCorrect,
+                    'is_flagged' => array_key_exists($answer->question_id, $submittedFlags)
+                        ? (bool) $submittedFlags[$answer->question_id]
+                        : (bool) $answer->is_flagged,
                 ]);
             }
 

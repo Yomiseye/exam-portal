@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['category_id', 'question_text', 'image_path', 'question_type', 'explanation', 'explanation_image_path', 'difficulty', 'lifecycle', 'eco_domain', 'domain', 'focus_area', 'is_active'])]
+#[Fillable(['category_id', 'question_text', 'image_path', 'question_type', 'explanation', 'explanation_image_path', 'difficulty', 'lifecycle', 'eco_domain', 'domain', 'focus_area', 'knowledge_area', 'task', 'technique', 'perspective', 'cognitive_level', 'is_active'])]
 class Question extends Model
 {
     use HasFactory;
@@ -62,6 +62,32 @@ class Question extends Model
         'executing' => 'Executing',
         'monitoring_controlling' => 'Monitoring & Controlling',
         'closing' => 'Closing',
+    ];
+
+    public const CBAP_KNOWLEDGE_AREAS = [
+        'business_analysis_planning_and_monitoring' => 'Business Analysis Planning and Monitoring',
+        'elicitation_and_collaboration' => 'Elicitation and Collaboration',
+        'requirements_life_cycle_management' => 'Requirements Life Cycle Management',
+        'strategy_analysis' => 'Strategy Analysis',
+        'requirements_analysis_and_design_definition' => 'Requirements Analysis and Design Definition',
+        'solution_evaluation' => 'Solution Evaluation',
+    ];
+
+    public const CBAP_PERSPECTIVES = [
+        'agile' => 'Agile',
+        'business_intelligence' => 'Business Intelligence',
+        'business_architecture' => 'Business Architecture',
+        'business_process_management' => 'Business Process Management',
+        'information_technology' => 'Information Technology',
+        'project_management' => 'Project Management',
+    ];
+
+    public const COGNITIVE_LEVELS = [
+        'recall' => 'Recall',
+        'understand' => 'Understand',
+        'apply' => 'Apply',
+        'analyze' => 'Analyze',
+        'evaluate' => 'Evaluate',
     ];
 
     /**
@@ -124,6 +150,21 @@ class Question extends Model
     public function focusAreaLabel(): string
     {
         return self::FOCUS_AREAS[$this->focus_area] ?? 'Unclassified';
+    }
+
+    public function knowledgeAreaLabel(): string
+    {
+        return self::CBAP_KNOWLEDGE_AREAS[$this->knowledge_area] ?? 'Unclassified';
+    }
+
+    public function perspectiveLabel(): string
+    {
+        return self::CBAP_PERSPECTIVES[$this->perspective] ?? 'Unclassified';
+    }
+
+    public function cognitiveLevelLabel(): string
+    {
+        return self::COGNITIVE_LEVELS[$this->cognitive_level] ?? 'Unclassified';
     }
 
     public function imageUrl(): ?string

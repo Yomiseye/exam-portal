@@ -40,6 +40,39 @@ class ExamController extends Controller
     }
 
     /**
+     * Show exam assignment visibility from the test perspective.
+     */
+    public function show(Exam $exam): View
+    {
+        $exam->load([
+            'categories.parent',
+            'assignments.user.studentGroup',
+            'assignments.assignedBy',
+            'groupAssignments.studentGroup.students' => fn ($query) => $query
+                ->where('role', 'student')
+                ->orderBy('name'),
+            'groupAssignments.assignedBy',
+            'attempts.user',
+        ]);
+
+        $directStudentIds = $exam->assignments
+            ->pluck('user_id')
+            ->unique();
+
+        $inheritedStudents = $exam->groupAssignments
+            ->flatMap(fn ($assignment) => $assignment->studentGroup?->students ?? collect())
+            ->unique('id')
+            ->values();
+
+        return view('admin.exams.show', [
+            'exam' => $exam,
+            'directStudentCount' => $directStudentIds->count(),
+            'inheritedStudentCount' => $inheritedStudents->whereNotIn('id', $directStudentIds)->count(),
+            'totalVisibleStudentCount' => $directStudentIds->merge($inheritedStudents->pluck('id'))->unique()->count(),
+        ]);
+    }
+
+    /**
      * Store a newly created exam.
      */
     public function store(Request $request): RedirectResponse

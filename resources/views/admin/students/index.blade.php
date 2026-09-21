@@ -101,7 +101,10 @@
                                         </div>
                                     </div>
                                     <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                                        {{ $student->examAssignments->count() }} assigned
+                                        {{ $student->examAssignments->count() }} direct
+                                    </span>
+                                    <span class="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                                        {{ $student->studentGroup?->examAssignments?->count() ?? 0 }} group test(s)
                                     </span>
                                     <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
                                         {{ $student->attempts_count }} attempt(s)
@@ -161,43 +164,92 @@
                                     @endif
                                 </div>
 
-                                <div class="mt-4 space-y-3">
-                                    @forelse ($student->examAssignments->sortByDesc('available_from') as $assignment)
-                                        <div class="rounded-md border border-gray-200 p-3">
-                                            <div class="font-medium text-gray-900">{{ $assignment->exam->title }}</div>
-                                            <div class="mt-1 text-sm text-gray-500">
-                                                {{ $assignment->available_from->format('M j, Y g:i A') }}
-                                                to
-                                                {{ $assignment->available_until->format('M j, Y g:i A') }}
-                                            </div>
-                                            <div class="mt-2">
-                                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{
-                                                    $assignment->isAvailable()
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : ($assignment->available_from->isFuture() ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700')
-                                                }}">
-                                                    <x-icon
-                                                        :name="$assignment->isAvailable()
-                                                            ? 'check-circle'
-                                                            : ($assignment->available_from->isFuture() ? 'clock' : 'x-circle')"
-                                                        class="h-3 w-3"
-                                                    />
-                                                    {{
-                                                        $assignment->isAvailable()
-                                                            ? 'Available now'
-                                                            : ($assignment->available_from->isFuture() ? 'Scheduled' : 'Closed')
-                                                    }}
-                                                </span>
-                                            </div>
+                                <div class="mt-4 space-y-4">
+                                    <div>
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Direct Assignments</div>
+                                        <div class="mt-2 space-y-3">
+                                            @forelse ($student->examAssignments->sortByDesc('available_from') as $assignment)
+                                                <div class="rounded-md border border-gray-200 p-3">
+                                                    <div class="font-medium text-gray-900">{{ $assignment->exam->title }}</div>
+                                                    <div class="mt-1 text-sm text-gray-500">
+                                                        {{ $assignment->available_from->format('M j, Y g:i A') }}
+                                                        to
+                                                        {{ $assignment->available_until->format('M j, Y g:i A') }}
+                                                    </div>
+                                                    <div class="mt-2">
+                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{
+                                                            $assignment->isAvailable()
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : ($assignment->available_from->isFuture() ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700')
+                                                        }}">
+                                                            <x-icon
+                                                                :name="$assignment->isAvailable()
+                                                                    ? 'check-circle'
+                                                                    : ($assignment->available_from->isFuture() ? 'clock' : 'x-circle')"
+                                                                class="h-3 w-3"
+                                                            />
+                                                            {{
+                                                                $assignment->isAvailable()
+                                                                    ? 'Available now'
+                                                                    : ($assignment->available_from->isFuture() ? 'Scheduled' : 'Closed')
+                                                            }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
+                                                    No direct exams assigned.
+                                                </div>
+                                            @endforelse
                                         </div>
-                                    @empty
-                                        <x-empty-state
-                                            class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-6"
-                                            icon="clipboard-list"
-                                            title="No exams assigned"
-                                            message="Assign an exam using the form on this student card."
-                                        />
-                                    @endforelse
+                                    </div>
+
+                                    <div>
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Group Assignments</div>
+                                            @if ($student->studentGroup)
+                                                <a href="{{ route('admin.student-groups.show', $student->studentGroup) }}" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:text-teal-900">
+                                                    <x-icon name="eye" class="h-3 w-3" />
+                                                    View group
+                                                </a>
+                                            @endif
+                                        </div>
+                                        <div class="mt-2 space-y-3">
+                                            @forelse (($student->studentGroup?->examAssignments ?? collect())->sortByDesc('available_from') as $assignment)
+                                                <div class="rounded-md border border-teal-100 bg-teal-50/60 p-3">
+                                                    <div class="font-medium text-gray-900">{{ $assignment->exam->title }}</div>
+                                                    <div class="mt-1 text-sm text-gray-600">
+                                                        {{ $assignment->available_from->format('M j, Y g:i A') }}
+                                                        to
+                                                        {{ $assignment->available_until->format('M j, Y g:i A') }}
+                                                    </div>
+                                                    <div class="mt-2">
+                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium {{
+                                                            $assignment->isAvailable()
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : ($assignment->available_from->isFuture() ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700')
+                                                        }}">
+                                                            <x-icon
+                                                                :name="$assignment->isAvailable()
+                                                                    ? 'check-circle'
+                                                                    : ($assignment->available_from->isFuture() ? 'clock' : 'x-circle')"
+                                                                class="h-3 w-3"
+                                                            />
+                                                            {{
+                                                                $assignment->isAvailable()
+                                                                    ? 'Available now'
+                                                                    : ($assignment->available_from->isFuture() ? 'Scheduled' : 'Closed')
+                                                            }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
+                                                    No group exams inherited.
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

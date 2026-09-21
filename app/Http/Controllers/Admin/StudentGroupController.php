@@ -77,6 +77,25 @@ class StudentGroupController extends Controller
     }
 
     /**
+     * Show a group with its students and assigned exams.
+     */
+    public function show(StudentGroup $studentGroup): View
+    {
+        $studentGroup->load([
+            'students' => fn ($query) => $query
+                ->where('role', 'student')
+                ->withCount('attempts')
+                ->orderBy('name'),
+            'examAssignments.exam',
+            'examAssignments.assignedBy',
+        ]);
+
+        return view('admin.student-groups.show', [
+            'group' => $studentGroup,
+        ]);
+    }
+
+    /**
      * Update a student group.
      */
     public function update(Request $request, StudentGroup $studentGroup): RedirectResponse

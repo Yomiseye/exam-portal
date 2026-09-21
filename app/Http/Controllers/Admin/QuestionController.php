@@ -40,6 +40,11 @@ class QuestionController extends Controller
                         ->orWhere('eco_domain', 'like', $search)
                         ->orWhere('domain', 'like', $search)
                         ->orWhere('focus_area', 'like', $search)
+                        ->orWhere('knowledge_area', 'like', $search)
+                        ->orWhere('task', 'like', $search)
+                        ->orWhere('technique', 'like', $search)
+                        ->orWhere('perspective', 'like', $search)
+                        ->orWhere('cognitive_level', 'like', $search)
                         ->orWhereHas('category', fn ($query) => $query->where('name', 'like', $search))
                         ->orWhereHas('category.parent', fn ($query) => $query->where('name', 'like', $search))
                         ->orWhereHas('tags', fn ($query) => $query->where('name', 'like', $search));
@@ -51,6 +56,11 @@ class QuestionController extends Controller
             ->when($request->filled('eco_domain'), fn ($query) => $this->applyMetadataFilter($query, 'eco_domain', $request->string('eco_domain')->toString(), Question::ECO_DOMAINS))
             ->when($request->filled('domain'), fn ($query) => $this->applyMetadataFilter($query, 'domain', $request->string('domain')->toString(), Question::PERFORMANCE_DOMAINS))
             ->when($request->filled('focus_area'), fn ($query) => $this->applyMetadataFilter($query, 'focus_area', $request->string('focus_area')->toString(), Question::FOCUS_AREAS))
+            ->when($request->filled('knowledge_area'), fn ($query) => $this->applyMetadataFilter($query, 'knowledge_area', $request->string('knowledge_area')->toString(), Question::CBAP_KNOWLEDGE_AREAS))
+            ->when($request->filled('task'), fn ($query) => $query->where('task', 'like', '%'.$request->string('task')->trim()->toString().'%'))
+            ->when($request->filled('technique'), fn ($query) => $query->where('technique', 'like', '%'.$request->string('technique')->trim()->toString().'%'))
+            ->when($request->filled('perspective'), fn ($query) => $this->applyMetadataFilter($query, 'perspective', $request->string('perspective')->toString(), Question::CBAP_PERSPECTIVES))
+            ->when($request->filled('cognitive_level'), fn ($query) => $this->applyMetadataFilter($query, 'cognitive_level', $request->string('cognitive_level')->toString(), Question::COGNITIVE_LEVELS))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
@@ -282,7 +292,7 @@ class QuestionController extends Controller
      */
     public function edit(Question $question): View
     {
-        $question->load('options', 'tags');
+        $question->load('category.parent', 'options', 'tags');
 
         return view('admin.questions.edit', [
             'question' => $question,
@@ -307,7 +317,7 @@ class QuestionController extends Controller
      */
     public function update(Request $request, Question $question): RedirectResponse
     {
-        $data = $this->validatedQuestionData($request);
+        $data = $this->validatedQuestionData($request, $question);
 
         DB::transaction(function () use ($request, $question, $data): void {
             $subcategory = $this->resolveSubcategory($data['category']);
@@ -384,8 +394,19 @@ class QuestionController extends Controller
      *
      * @return array{question: array<string, mixed>, options: array<int, array{text: string, match_text?: string}>, correct_options: array<int, int>}
      */
-    private function validatedQuestionData(Request $request): array
+    private function validatedQuestionData(Request $request, ?Question $question = null): array
     {
+        if ($question && blank($request->input('parent_category_id')) && blank($request->input('subcategory_id')) && blank($request->input('new_category_name')) && blank($request->input('new_subcategory_name'))) {
+            $question->loadMissing('category.parent');
+
+            if ($question->category?->parent_id) {
+                $request->merge([
+                    'parent_category_id' => $question->category->parent_id,
+                    'subcategory_id' => $question->category_id,
+                ]);
+            }
+        }
+
         $validator = Validator::make($request->all(), [
             'parent_category_id' => [
                 'nullable',
@@ -412,10 +433,15 @@ class QuestionController extends Controller
             'question_type' => ['required', Rule::in(array_keys(Question::TYPES))],
             'explanation' => ['nullable', 'string'],
             'difficulty' => ['required', Rule::in(['easy', 'medium', 'hard'])],
-            'lifecycle' => ['required', Rule::in(array_keys(Question::LIFECYCLES))],
-            'eco_domain' => ['required', Rule::in(array_keys(Question::ECO_DOMAINS))],
-            'domain' => ['required', Rule::in(array_keys(Question::PERFORMANCE_DOMAINS))],
-            'focus_area' => ['required', Rule::in(array_keys(Question::FOCUS_AREAS))],
+            'lifecycle' => ['nullable', Rule::in(array_keys(Question::LIFECYCLES))],
+            'eco_domain' => ['nullable', Rule::in(array_keys(Question::ECO_DOMAINS))],
+            'domain' => ['nullable', Rule::in(array_keys(Question::PERFORMANCE_DOMAINS))],
+            'focus_area' => ['nullable', Rule::in(array_keys(Question::FOCUS_AREAS))],
+            'knowledge_area' => ['nullable', Rule::in(array_keys(Question::CBAP_KNOWLEDGE_AREAS))],
+            'task' => ['nullable', 'string', 'max:255'],
+            'technique' => ['nullable', 'string', 'max:255'],
+            'perspective' => ['nullable', Rule::in(array_keys(Question::CBAP_PERSPECTIVES))],
+            'cognitive_level' => ['nullable', Rule::in(array_keys(Question::COGNITIVE_LEVELS))],
             'is_active' => ['sometimes', 'boolean'],
             'options' => ['required', 'array', 'min:2'],
             'options.*.id' => ['nullable', 'integer'],
@@ -542,10 +568,15 @@ class QuestionController extends Controller
                 'question_type' => $validated['question_type'],
                 'explanation' => filled($validated['explanation'] ?? null) ? RichText::clean($validated['explanation']) : null,
                 'difficulty' => $validated['difficulty'],
-                'lifecycle' => $validated['lifecycle'],
-                'eco_domain' => $validated['eco_domain'],
-                'domain' => $validated['domain'],
-                'focus_area' => $validated['focus_area'],
+                'lifecycle' => $validated['lifecycle'] ?? null,
+                'eco_domain' => $validated['eco_domain'] ?? null,
+                'domain' => $validated['domain'] ?? null,
+                'focus_area' => $validated['focus_area'] ?? null,
+                'knowledge_area' => $validated['knowledge_area'] ?? null,
+                'task' => filled($validated['task'] ?? null) ? trim($validated['task']) : null,
+                'technique' => filled($validated['technique'] ?? null) ? trim($validated['technique']) : null,
+                'perspective' => $validated['perspective'] ?? null,
+                'cognitive_level' => $validated['cognitive_level'] ?? null,
                 'is_active' => $request->boolean('is_active'),
             ],
             'options' => collect(array_values($validated['options']))
@@ -779,6 +810,15 @@ class QuestionController extends Controller
             ?? $this->metadataValueFromImport($metadataText, Question::PERFORMANCE_DOMAINS);
         $focusArea = $this->metadataValueFromImport($this->rowValueFromImport($row, ['focus_area', 'focus', 'process_group']), Question::FOCUS_AREAS)
             ?? $this->metadataValueFromImport($metadataText, Question::FOCUS_AREAS);
+        $knowledgeAreaText = $this->rowValueFromImport($row, ['knowledge_area', 'cbap_knowledge_area', 'business_analysis_knowledge_area', 'ka']);
+        $perspectiveText = $this->rowValueFromImport($row, ['perspective', 'cbap_perspective']);
+        $cognitiveLevelText = $this->rowValueFromImport($row, ['cognitive_level', 'cognitive', 'bloom_level', 'blooms_level']);
+        $knowledgeArea = $this->metadataValueFromImport($knowledgeAreaText, Question::CBAP_KNOWLEDGE_AREAS)
+            ?? $this->metadataValueFromImport($metadataText, Question::CBAP_KNOWLEDGE_AREAS);
+        $task = $this->optionalImportText($this->rowValueFromImport($row, ['task', 'tasks', 'cbap_task', 'babok_task']));
+        $technique = $this->optionalImportText($this->rowValueFromImport($row, ['technique', 'techniques', 'cbap_technique', 'babok_technique']));
+        $perspective = $this->metadataValueFromImport($perspectiveText, Question::CBAP_PERSPECTIVES);
+        $cognitiveLevel = $this->metadataValueFromImport($cognitiveLevelText, Question::COGNITIVE_LEVELS);
         $options = $this->optionsFromImportRow($row);
 
         if ($categoryName === '') {
@@ -799,6 +839,18 @@ class QuestionController extends Controller
 
         if (! in_array($difficulty, ['easy', 'medium', 'hard'], true)) {
             $errors[] = "Row {$rowNumber}: difficulty must be easy, medium, or hard.";
+        }
+
+        if ($knowledgeAreaText !== '' && ! $knowledgeArea) {
+            $errors[] = "Row {$rowNumber}: knowledge_area must be business_analysis_planning_and_monitoring, elicitation_and_collaboration, requirements_life_cycle_management, strategy_analysis, requirements_analysis_and_design_definition, or solution_evaluation.";
+        }
+
+        if ($perspectiveText !== '' && ! $perspective) {
+            $errors[] = "Row {$rowNumber}: perspective must be agile, business_intelligence, business_architecture, business_process_management, information_technology, or project_management.";
+        }
+
+        if ($cognitiveLevelText !== '' && ! $cognitiveLevel) {
+            $errors[] = "Row {$rowNumber}: cognitive_level must be recall, understand, apply, analyze, or evaluate.";
         }
 
         if (count($options) < 2) {
@@ -861,6 +913,11 @@ class QuestionController extends Controller
                     'eco_domain' => $ecoDomain,
                     'domain' => $domain,
                     'focus_area' => $focusArea,
+                    'knowledge_area' => $knowledgeArea,
+                    'task' => $task,
+                    'technique' => $technique,
+                    'perspective' => $perspective,
+                    'cognitive_level' => $cognitiveLevel,
                     'is_active' => $this->booleanFromImport($row['is_active'] ?? 'yes'),
                 ],
                 'category' => [
@@ -901,6 +958,17 @@ class QuestionController extends Controller
         }
 
         return '';
+    }
+
+    private function optionalImportText(string $value): ?string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return mb_substr($value, 0, 255);
     }
 
     private function questionTypeFromImport(string $value): ?string

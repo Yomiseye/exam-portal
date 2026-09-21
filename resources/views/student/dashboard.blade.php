@@ -159,6 +159,130 @@
                     <div class="p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
+                                <h3 class="text-lg font-semibold text-gray-950">Performance Trends</h3>
+                                <p class="mt-1 text-sm text-gray-500">Track whether your scores are improving across completed attempts.</p>
+                            </div>
+
+                            @php
+                                $trendSummary = $performanceTrends['summary'];
+                                $trendClass = match ($trendSummary['direction']) {
+                                    'up' => 'portal-badge-success',
+                                    'down' => 'portal-badge-danger',
+                                    default => 'portal-badge-neutral',
+                                };
+                                $trendIcon = match ($trendSummary['direction']) {
+                                    'up' => 'arrow-right',
+                                    'down' => 'arrow-left',
+                                    default => 'chart-bar',
+                                };
+                            @endphp
+
+                            <span class="portal-badge {{ $trendClass }} w-fit">
+                                <x-icon name="{{ $trendIcon }}" class="h-3 w-3" />
+                                @if ($trendSummary['delta'] === null)
+                                    Trend pending
+                                @elseif ($trendSummary['delta'] > 0)
+                                    +{{ $trendSummary['delta'] }}% overall
+                                @elseif ($trendSummary['delta'] < 0)
+                                    {{ $trendSummary['delta'] }}% overall
+                                @else
+                                    No change
+                                @endif
+                            </span>
+                        </div>
+
+                        @if ($trendSummary['completed'] > 0)
+                            <div class="mt-5 grid gap-4 md:grid-cols-4">
+                                <div class="rounded-md border border-gray-200 p-4">
+                                    <div class="text-sm text-gray-500">Completed Attempts</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-950">{{ $trendSummary['completed'] }}</div>
+                                </div>
+                                <div class="rounded-md border border-gray-200 p-4">
+                                    <div class="text-sm text-gray-500">Latest Score</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-950">{{ $trendSummary['latest'] }}%</div>
+                                </div>
+                                <div class="rounded-md border border-gray-200 p-4">
+                                    <div class="text-sm text-gray-500">Average Score</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-950">{{ $trendSummary['average'] }}%</div>
+                                </div>
+                                <div class="rounded-md border border-gray-200 p-4">
+                                    <div class="text-sm text-gray-500">Best Score</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-950">{{ $trendSummary['best'] }}%</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 grid gap-4 lg:grid-cols-2">
+                                @foreach ($performanceTrends['exams'] as $examTrend)
+                                    @php
+                                        $examTrendClass = match ($examTrend['direction']) {
+                                            'up' => 'bg-emerald-50 text-emerald-700',
+                                            'down' => 'bg-red-50 text-red-700',
+                                            default => 'bg-gray-100 text-gray-700',
+                                        };
+                                    @endphp
+
+                                    <div class="rounded-md border border-gray-200 p-4">
+                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <h4 class="font-semibold text-gray-950">{{ $examTrend['exam'] }}</h4>
+                                                <p class="mt-1 text-xs text-gray-500">
+                                                    {{ $examTrend['attempts'] }} completed attempt(s) - average {{ $examTrend['average'] }}%
+                                                </p>
+                                            </div>
+
+                                            <span class="inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold {{ $examTrendClass }}">
+                                                @if ($examTrend['delta'] === null)
+                                                    First attempt
+                                                @elseif ($examTrend['delta'] > 0)
+                                                    +{{ $examTrend['delta'] }}%
+                                                @elseif ($examTrend['delta'] < 0)
+                                                    {{ $examTrend['delta'] }}%
+                                                @else
+                                                    No change
+                                                @endif
+                                            </span>
+                                        </div>
+
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($examTrend['recent'] as $point)
+                                                @php
+                                                    $barClass = $point['status'] === 'passed'
+                                                        ? 'bg-emerald-500'
+                                                        : 'bg-red-500';
+                                                @endphp
+
+                                                <div>
+                                                    <div class="flex items-center justify-between gap-3 text-xs text-gray-600">
+                                                        <span>Attempt {{ $point['attempt_number'] }}{{ $point['date'] ? ' - '.$point['date'] : '' }}</span>
+                                                        <span class="font-semibold text-gray-950">{{ $point['percentage'] }}%</span>
+                                                    </div>
+                                                    <div class="mt-1 h-2 rounded-full bg-gray-100">
+                                                        <div
+                                                            class="h-2 rounded-full {{ $barClass }}"
+                                                            style="width: {{ max(4, min(100, $point['percentage'])) }}%"
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <x-empty-state
+                                class="mt-6 rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-8"
+                                icon="chart-bar"
+                                title="No performance trend yet"
+                                message="Your progress trend will appear after you complete at least one exam attempt."
+                            />
+                        @endif
+                    </div>
+                </div>
+
+                <div class="portal-panel overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
                                 <h3 class="text-lg font-semibold text-gray-950">Test History</h3>
                                 <p class="mt-1 text-sm text-gray-500">Complete record of your examination attempts.</p>
                             </div>

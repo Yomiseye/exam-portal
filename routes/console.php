@@ -2,6 +2,7 @@
 
 use App\Models\Certification;
 use App\Models\CertificationPackage;
+use App\Models\Category;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
@@ -85,3 +86,41 @@ Artisan::command('commercial:seed-pmp-packages {certification=Project Management
 
     return 0;
 })->purpose('Create the three Project Management Professional commercial package presets');
+
+Artisan::command('categories:seed-itil-domains', function () {
+    $parent = Category::query()->updateOrCreate(
+        ['name' => 'ITIL'],
+        [
+            'parent_id' => null,
+            'description' => 'ITIL certification question domains.',
+            'is_active' => true,
+        ],
+    );
+
+    $domains = [
+        'Key ITIL terms and definitions',
+        'ITIL Four Dimensions of Product and Service Management',
+        'ITIL Product and Service Lifecycle',
+        'ITIL Value System',
+        'Value stream identification, mapping, and management',
+        'ITIL and AI',
+        'ITIL and other frameworks',
+    ];
+
+    foreach ($domains as $domain) {
+        $category = Category::query()->updateOrCreate(
+            ['name' => $domain],
+            [
+                'parent_id' => $parent->id,
+                'description' => null,
+                'is_active' => true,
+            ],
+        );
+
+        $this->line(($category->wasRecentlyCreated ? 'Created' : 'Updated').": {$category->name}");
+    }
+
+    $this->info('ITIL category and exam domains are ready.');
+
+    return 0;
+})->purpose('Create or update the ITIL category and exam domains');

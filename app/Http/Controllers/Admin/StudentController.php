@@ -28,7 +28,7 @@ class StudentController extends Controller
 
         $students = User::query()
             ->where('role', 'student')
-            ->with(['examAssignments.exam', 'studentGroup'])
+            ->with(['examAssignments.exam', 'studentGroup.examAssignments.exam'])
             ->withCount('attempts')
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = '%'.$request->string('search')->trim()->toString().'%';

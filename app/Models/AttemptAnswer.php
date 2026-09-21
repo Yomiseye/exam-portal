@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'selected_option_ids',
     'matching_answer',
     'is_correct',
+    'is_flagged',
 ])]
 class AttemptAnswer extends Model
 {
@@ -30,6 +31,7 @@ class AttemptAnswer extends Model
             'selected_option_ids' => 'array',
             'matching_answer' => 'array',
             'is_correct' => 'boolean',
+            'is_flagged' => 'boolean',
         ];
     }
 

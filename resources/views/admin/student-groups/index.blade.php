@@ -88,6 +88,11 @@
                                 </div>
 
                                 <div class="mt-4 flex flex-wrap gap-3 text-sm font-medium">
+                                    <a href="{{ route('admin.student-groups.show', $group) }}" class="inline-flex items-center gap-1.5 text-xs text-teal-700 hover:text-teal-900">
+                                        <x-icon name="eye" class="h-3.5 w-3.5" />
+                                        View
+                                    </a>
+
                                     <a href="{{ route('admin.student-groups.edit', $group) }}" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-900">
                                         <x-icon name="pencil" class="h-3.5 w-3.5" />
                                         Edit

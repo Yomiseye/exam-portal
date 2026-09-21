@@ -24,6 +24,9 @@
                 <p class="mt-2 text-sm text-gray-600">
                     Existing sheets that use <span class="font-semibold">domain</span> for People, Process, or Business Environment are still accepted as Eco Domain. For new sheets, use <span class="font-semibold">eco_domain</span> and <span class="font-semibold">performance_domain</span>.
                 </p>
+                <p class="mt-2 text-sm text-gray-600">
+                    For CBAP questions, add the optional columns <span class="font-semibold">knowledge_area</span>, <span class="font-semibold">task</span>, <span class="font-semibold">technique</span>, <span class="font-semibold">perspective</span>, and <span class="font-semibold">cognitive_level</span>.
+                </p>
 
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -79,6 +82,31 @@
                                 <td class="px-3 py-2 font-medium text-gray-900">focus_area</td>
                                 <td class="px-3 py-2 text-gray-600">Recommended</td>
                                 <td class="px-3 py-2 text-gray-600">initiating, planning, executing, monitoring_controlling, closing</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">knowledge_area</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">strategy_analysis, elicitation_and_collaboration, solution_evaluation</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">task</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">Analyze current state</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">technique</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">Process modelling</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">perspective</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">agile, business_intelligence, information_technology, project_management</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 font-medium text-gray-900">cognitive_level</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">recall, understand, apply, analyze, evaluate</td>
                             </tr>
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">option_1, option_2...</td>

@@ -272,7 +272,7 @@
 <div class="grid gap-6 md:grid-cols-4">
     <div>
         <x-input-label for="lifecycle" value="Lifecycle" icon="filter" />
-        <select id="lifecycle" name="lifecycle" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+        <select id="lifecycle" name="lifecycle" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
             <option value="">Choose lifecycle</option>
             @foreach (\App\Models\Question::LIFECYCLES as $value => $label)
                 <option value="{{ $value }}" @selected(old('lifecycle', $question?->lifecycle) === $value)>
@@ -285,7 +285,7 @@
 
     <div>
         <x-input-label for="eco_domain" value="Eco_Domain" icon="tag" />
-        <select id="eco_domain" name="eco_domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+        <select id="eco_domain" name="eco_domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
             <option value="">Choose eco domain</option>
             @foreach (\App\Models\Question::ECO_DOMAINS as $value => $label)
                 <option value="{{ $value }}" @selected(old('eco_domain', $question?->eco_domain) === $value)>
@@ -298,7 +298,7 @@
 
     <div>
         <x-input-label for="domain" value="Performance_Domain" icon="tag" />
-        <select id="domain" name="domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+        <select id="domain" name="domain" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
             <option value="">Choose performance domain</option>
             @foreach (\App\Models\Question::PERFORMANCE_DOMAINS as $value => $label)
                 <option value="{{ $value }}" @selected(old('domain', $question?->domain) === $value)>
@@ -311,7 +311,7 @@
 
     <div>
         <x-input-label for="focus_area" value="Focus Area" icon="clipboard-list" />
-        <select id="focus_area" name="focus_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+        <select id="focus_area" name="focus_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
             <option value="">Choose focus area</option>
             @foreach (\App\Models\Question::FOCUS_AREAS as $value => $label)
                 <option value="{{ $value }}" @selected(old('focus_area', $question?->focus_area) === $value)>
@@ -320,6 +320,85 @@
             @endforeach
         </select>
         <x-input-error class="mt-2" :messages="$errors->get('focus_area')" />
+    </div>
+</div>
+
+<div class="rounded-md border border-sky-100 bg-sky-50/70 p-4">
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h3 class="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sky-900">
+                <x-icon name="award" class="h-4 w-4 text-sky-600" />
+                CBAP Classification
+            </h3>
+            <p class="mt-1 text-sm text-sky-800/80">Optional fields for Business Analysis questions.</p>
+        </div>
+    </div>
+
+    <div class="mt-4 grid gap-4 md:grid-cols-3">
+        <div>
+            <x-input-label for="knowledge_area" value="Knowledge Area" icon="clipboard-list" />
+            <select id="knowledge_area" name="knowledge_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                <option value="">Choose knowledge area</option>
+                @foreach (\App\Models\Question::CBAP_KNOWLEDGE_AREAS as $value => $label)
+                    <option value="{{ $value }}" @selected(old('knowledge_area', $question?->knowledge_area) === $value)>
+                        {{ $label }}
+                    </option>
+                @endforeach
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('knowledge_area')" />
+        </div>
+
+        <div>
+            <x-input-label for="task" value="Task" icon="file-text" />
+            <x-text-input
+                id="task"
+                name="task"
+                type="text"
+                class="mt-1 block w-full"
+                :value="old('task', $question?->task)"
+                placeholder="Define business analysis approach"
+            />
+            <x-input-error class="mt-2" :messages="$errors->get('task')" />
+        </div>
+
+        <div>
+            <x-input-label for="technique" value="Technique" icon="file-text" />
+            <x-text-input
+                id="technique"
+                name="technique"
+                type="text"
+                class="mt-1 block w-full"
+                :value="old('technique', $question?->technique)"
+                placeholder="Stakeholder analysis"
+            />
+            <x-input-error class="mt-2" :messages="$errors->get('technique')" />
+        </div>
+
+        <div>
+            <x-input-label for="perspective" value="Perspective" icon="filter" />
+            <select id="perspective" name="perspective" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                <option value="">Choose perspective</option>
+                @foreach (\App\Models\Question::CBAP_PERSPECTIVES as $value => $label)
+                    <option value="{{ $value }}" @selected(old('perspective', $question?->perspective) === $value)>
+                        {{ $label }}
+                    </option>
+                @endforeach
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('perspective')" />
+        </div>
+
+        <div>
+            <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
+            <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                <option value="">Choose cognitive level</option>
+                @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
+                    <option value="{{ $value }}" @selected(old('cognitive_level', $question?->cognitive_level) === $value)>
+                        {{ $label }}
+                    </option>
+                @endforeach
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('cognitive_level')" />
+        </div>
     </div>
 </div>
 
