@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Certification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class CategoryController extends Controller
         $perPage = $this->adminPageSize($request);
 
         $categories = Category::query()
-            ->with('parent')
+            ->with('certification', 'parent.certification')
             ->withCount(['subcategories', 'questions', 'exams'])
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = '%'.$request->string('search')->trim()->toString().'%';
@@ -47,6 +48,7 @@ class CategoryController extends Controller
     {
         return view('admin.categories.create', [
             'parentCategories' => $this->parentCategories(),
+            'certifications' => $this->certifications(),
         ]);
     }
 
@@ -70,6 +72,7 @@ class CategoryController extends Controller
         return view('admin.categories.edit', [
             'category' => $category,
             'parentCategories' => $this->parentCategories($category),
+            'certifications' => $this->certifications(),
         ]);
     }
 
@@ -124,7 +127,7 @@ class CategoryController extends Controller
      */
     private function validatedCategoryData(Request $request, ?Category $category = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'parent_id' => [
                 'nullable',
                 'integer',
@@ -139,6 +142,7 @@ class CategoryController extends Controller
                     }
                 },
             ],
+            'certification_id' => ['nullable', 'integer', Rule::exists('certifications', 'id')->where('is_active', true)],
             'name' => [
                 'required',
                 'string',
@@ -148,6 +152,12 @@ class CategoryController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]) + ['is_active' => false];
+
+        if (! empty($data['parent_id'])) {
+            $data['certification_id'] = null;
+        }
+
+        return $data;
     }
 
     private function parentCategories(?Category $category = null)
@@ -175,5 +185,13 @@ class CategoryController extends Controller
         return $category->subcategories
             ->flatMap(fn (Category $subcategory) => array_merge([$subcategory->id], $this->descendantIds($subcategory)))
             ->all();
+    }
+
+    private function certifications()
+    {
+        return Certification::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 }

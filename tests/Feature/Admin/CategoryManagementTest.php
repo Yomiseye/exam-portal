@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Category;
+use App\Models\Certification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -71,6 +72,53 @@ class CategoryManagementTest extends TestCase
             'description' => 'Scope questions.',
             'is_active' => true,
         ]);
+    }
+
+    public function test_admin_can_link_top_level_question_bank_to_certification(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $certification = Certification::create([
+            'name' => 'Certified Business Analysis Professional',
+            'slug' => 'cbap',
+            'classification_profile' => Certification::PROFILE_CBAP,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.categories.store'), [
+                'certification_id' => $certification->id,
+                'name' => 'Business Analysis',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.categories.index'));
+
+        $category = Category::where('name', 'Business Analysis')->firstOrFail();
+
+        $this->assertSame($certification->id, $category->certification_id);
+        $this->assertSame(Certification::PROFILE_CBAP, $category->classificationProfile());
+    }
+
+    public function test_subcategory_inherits_parent_certification_profile(): void
+    {
+        $certification = Certification::create([
+            'name' => 'ITIL Foundation',
+            'slug' => 'itil-foundation',
+            'classification_profile' => Certification::PROFILE_ITIL,
+            'is_active' => true,
+        ]);
+        $parent = Category::create([
+            'certification_id' => $certification->id,
+            'name' => 'ITIL',
+            'is_active' => true,
+        ]);
+        $subcategory = Category::create([
+            'parent_id' => $parent->id,
+            'name' => 'ITIL Value System',
+            'is_active' => true,
+        ]);
+
+        $this->assertSame(Certification::PROFILE_ITIL, $subcategory->classificationProfile());
+        $this->assertSame('ITIL Foundation', $subcategory->certificationName());
     }
 
     public function test_admin_can_update_category(): void

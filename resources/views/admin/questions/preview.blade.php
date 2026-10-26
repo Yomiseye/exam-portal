@@ -1,4 +1,8 @@
 <x-app-layout>
+    @php
+        $classificationProfile = $question->classificationProfile();
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -34,29 +38,47 @@
                         <span class="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
                             {{ ucfirst($question->difficulty) }}
                         </span>
+                        @if ($question->certificationName())
+                            <span class="inline-flex w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-700">
+                                {{ $question->certificationName() }}
+                            </span>
+                        @endif
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->lifecycle)
                         <span class="inline-flex w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-700">
                             {{ $question->lifecycleLabel() }}
                         </span>
+                        @endif
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->eco_domain)
                         <span class="inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
                             {{ $question->ecoDomainLabel() }}
                         </span>
+                        @endif
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->domain)
                         <span class="inline-flex w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
                             {{ $question->performanceDomainLabel() }}
                         </span>
+                        @endif
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->focus_area)
                         <span class="inline-flex w-fit rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
                             {{ $question->focusAreaLabel() }}
                         </span>
-                        @if ($question->knowledge_area)
+                        @endif
+                        @if ($classificationProfile === \App\Models\Certification::PROFILE_ITIL)
+                            <span class="inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
+                                {{ $question->category->name }}
+                            </span>
+                        @endif
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true) && $question->knowledge_area)
                             <span class="inline-flex w-fit rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-800">
                                 {{ $question->knowledgeAreaLabel() }}
                             </span>
                         @endif
-                        @if ($question->perspective)
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true) && $question->perspective)
                             <span class="inline-flex w-fit rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
                                 {{ $question->perspectiveLabel() }}
                             </span>
                         @endif
-                        @if ($question->cognitive_level)
+                        @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP, \App\Models\Certification::PROFILE_ITIL], true) && $question->cognitive_level)
                             <span class="inline-flex w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-700">
                                 {{ $question->cognitiveLevelLabel() }}
                             </span>
@@ -67,7 +89,7 @@
                     </div>
                 </div>
 
-                @if ($question->task || $question->technique)
+                @if (in_array($classificationProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true) && ($question->task || $question->technique))
                     <div class="mt-4 grid gap-3 rounded-md border border-cyan-100 bg-cyan-50/70 p-4 text-sm text-cyan-950 sm:grid-cols-2">
                         @if ($question->task)
                             <div>

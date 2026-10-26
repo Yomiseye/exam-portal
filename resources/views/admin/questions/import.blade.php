@@ -27,6 +27,9 @@
                 <p class="mt-2 text-sm text-gray-600">
                     For CBAP questions, add the optional columns <span class="font-semibold">knowledge_area</span>, <span class="font-semibold">task</span>, <span class="font-semibold">technique</span>, <span class="font-semibold">perspective</span>, and <span class="font-semibold">cognitive_level</span>.
                 </p>
+                <p class="mt-2 text-sm text-gray-600">
+                    For ITIL questions, use <span class="font-semibold">ITIL</span> as the category and one of the configured ITIL exam domains as the subcategory. The optional <span class="font-semibold">cognitive_level</span> column is also supported.
+                </p>
 
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -105,7 +108,7 @@
                             </tr>
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-900">cognitive_level</td>
-                                <td class="px-3 py-2 text-gray-600">CBAP optional</td>
+                                <td class="px-3 py-2 text-gray-600">CBAP / ITIL optional</td>
                                 <td class="px-3 py-2 text-gray-600">recall, understand, apply, analyze, evaluate</td>
                             </tr>
                             <tr>

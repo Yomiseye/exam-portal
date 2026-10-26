@@ -145,6 +145,7 @@ class CertificationController extends Controller
                 Rule::unique('certifications', 'name')->ignore($certification),
             ],
             'description' => ['nullable', 'string'],
+            'classification_profile' => ['required', Rule::in(array_keys(Certification::CLASSIFICATION_PROFILES))],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_image' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],

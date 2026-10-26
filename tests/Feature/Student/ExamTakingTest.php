@@ -4,6 +4,7 @@ namespace Tests\Feature\Student;
 
 use App\Models\Attempt;
 use App\Models\Category;
+use App\Models\Certification;
 use App\Models\Exam;
 use App\Models\ExamAssignment;
 use App\Models\ExamRetakePermission;
@@ -566,6 +567,124 @@ class ExamTakingTest extends TestCase
         $this->actingAs($otherStudent)
             ->get(route('student.attempts.show', $attempt))
             ->assertForbidden();
+    }
+
+    public function test_cbap_result_shows_cbap_classification_analytics(): void
+    {
+        $student = User::factory()->student()->create();
+        $certification = Certification::create([
+            'name' => 'CBAP',
+            'slug' => 'cbap',
+            'classification_profile' => Certification::PROFILE_CBAP,
+            'is_active' => true,
+        ]);
+        $parent = Category::create(['certification_id' => $certification->id, 'name' => 'Business Analysis', 'is_active' => true]);
+        $category = Category::create(['parent_id' => $parent->id, 'name' => 'Strategy Analysis', 'is_active' => true]);
+        $exam = Exam::create([
+            'title' => 'CBAP Practice Test',
+            'duration_minutes' => 30,
+            'total_questions' => 1,
+            'pass_mark' => 50,
+            'is_randomized' => false,
+            'show_corrections' => true,
+            'is_active' => true,
+        ]);
+        $question = Question::create([
+            'category_id' => $category->id,
+            'question_text' => 'Which activity evaluates the current state?',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'difficulty' => 'medium',
+            'knowledge_area' => 'strategy_analysis',
+            'task' => 'Analyze current state',
+            'technique' => 'Process modelling',
+            'perspective' => 'project_management',
+            'cognitive_level' => 'analyze',
+            'is_active' => true,
+        ]);
+        $option = $question->options()->create(['option_text' => 'Current-state assessment', 'is_correct' => true]);
+        $attempt = Attempt::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'score' => 1,
+            'total_questions' => 1,
+            'percentage' => 100,
+            'status' => 'passed',
+            'started_at' => now()->subMinute(),
+            'expires_at' => now()->addMinutes(29),
+            'submitted_at' => now(),
+        ]);
+        $attempt->answers()->create([
+            'question_id' => $question->id,
+            'selected_option_id' => $option->id,
+            'is_correct' => true,
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('student.attempts.result', $attempt))
+            ->assertOk()
+            ->assertSee('Knowledge Area Performance')
+            ->assertSee('Strategy Analysis')
+            ->assertSee('Task Performance')
+            ->assertSee('Analyze current state')
+            ->assertSee('Perspective Performance')
+            ->assertSee('Project Management')
+            ->assertDontSee('Lifecycle Performance');
+    }
+
+    public function test_itil_result_uses_subcategory_as_domain_analytics(): void
+    {
+        $student = User::factory()->student()->create();
+        $certification = Certification::create([
+            'name' => 'ITIL Foundation',
+            'slug' => 'itil-foundation',
+            'classification_profile' => Certification::PROFILE_ITIL,
+            'is_active' => true,
+        ]);
+        $parent = Category::create(['certification_id' => $certification->id, 'name' => 'ITIL', 'is_active' => true]);
+        $category = Category::create(['parent_id' => $parent->id, 'name' => 'ITIL Value System', 'is_active' => true]);
+        $exam = Exam::create([
+            'title' => 'ITIL Practice Test',
+            'duration_minutes' => 30,
+            'total_questions' => 1,
+            'pass_mark' => 50,
+            'is_randomized' => false,
+            'show_corrections' => true,
+            'is_active' => true,
+        ]);
+        $question = Question::create([
+            'category_id' => $category->id,
+            'question_text' => 'What is part of the service value system?',
+            'question_type' => Question::TYPE_SINGLE_CHOICE,
+            'difficulty' => 'easy',
+            'cognitive_level' => 'understand',
+            'is_active' => true,
+        ]);
+        $option = $question->options()->create(['option_text' => 'Guiding principles', 'is_correct' => true]);
+        $attempt = Attempt::create([
+            'user_id' => $student->id,
+            'exam_id' => $exam->id,
+            'score' => 1,
+            'total_questions' => 1,
+            'percentage' => 100,
+            'status' => 'passed',
+            'started_at' => now()->subMinute(),
+            'expires_at' => now()->addMinutes(29),
+            'submitted_at' => now(),
+        ]);
+        $attempt->answers()->create([
+            'question_id' => $question->id,
+            'selected_option_id' => $option->id,
+            'is_correct' => true,
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('student.attempts.result', $attempt))
+            ->assertOk()
+            ->assertSee('ITIL Domain Performance')
+            ->assertSee('ITIL Value System')
+            ->assertSee('Cognitive Level Performance')
+            ->assertSee('Understand')
+            ->assertDontSee('Knowledge Area Performance');
     }
 
     public function test_student_only_sees_assigned_exams_on_dashboard(): void

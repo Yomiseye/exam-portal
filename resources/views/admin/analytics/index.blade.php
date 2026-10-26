@@ -25,6 +25,18 @@
                     </div>
 
                     <div>
+                        <x-input-label for="certification_id" value="Certification" icon="award" />
+                        <select id="certification_id" name="certification_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">All certifications</option>
+                            @foreach ($certifications as $certification)
+                                <option value="{{ $certification->id }}" @selected((string) request('certification_id') === (string) $certification->id)>
+                                    {{ $certification->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
                         <x-input-label for="date_from" value="From" icon="calendar-days" />
                         <x-text-input id="date_from" name="date_from" type="date" class="mt-1 block w-full" :value="request('date_from')" />
                     </div>

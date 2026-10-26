@@ -1,4 +1,9 @@
 <x-app-layout>
+    @php
+        $selectedCertification = $certifications->firstWhere('id', (int) request('certification_id'));
+        $selectedProfile = $selectedCertification?->classification_profile ?? \App\Models\Certification::PROFILE_GENERAL;
+    @endphp
+
     <x-slot name="header">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -46,6 +51,18 @@
                     </div>
 
                     <div>
+                        <x-input-label for="certification_id" value="Certification" icon="award" />
+                        <select id="certification_id" name="certification_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">All certifications</option>
+                            @foreach ($certifications as $certification)
+                                <option value="{{ $certification->id }}" @selected((string) request('certification_id') === (string) $certification->id)>
+                                    {{ $certification->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
                         <x-input-label for="category_id" value="Category" icon="tag" />
                         <select id="category_id" name="category_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                             <option value="">All categories</option>
@@ -67,6 +84,7 @@
                         </select>
                     </div>
 
+                    @if (in_array($selectedProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true))
                     <div>
                         <x-input-label for="lifecycle" value="Lifecycle" icon="filter" />
                         <select id="lifecycle" name="lifecycle" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -99,7 +117,6 @@
                             <option value="unclassified" @selected(request('domain') === 'unclassified')>Unclassified</option>
                         </select>
                     </div>
-
                     <div>
                         <x-input-label for="focus_area" value="Focus Area" icon="clipboard-list" />
                         <select id="focus_area" name="focus_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -110,7 +127,9 @@
                             <option value="unclassified" @selected(request('focus_area') === 'unclassified')>Unclassified</option>
                         </select>
                     </div>
+                    @endif
 
+                    @if (in_array($selectedProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true))
                     <div>
                         <x-input-label for="knowledge_area" value="Knowledge Area" icon="clipboard-list" />
                         <select id="knowledge_area" name="knowledge_area" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -121,7 +140,6 @@
                             <option value="unclassified" @selected(request('knowledge_area') === 'unclassified')>Unclassified</option>
                         </select>
                     </div>
-
                     <div>
                         <x-input-label for="perspective" value="Perspective" icon="filter" />
                         <select id="perspective" name="perspective" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -132,18 +150,6 @@
                             <option value="unclassified" @selected(request('perspective') === 'unclassified')>Unclassified</option>
                         </select>
                     </div>
-
-                    <div>
-                        <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
-                        <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                            <option value="">All cognitive levels</option>
-                            @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
-                                <option value="{{ $value }}" @selected(request('cognitive_level') === $value)>{{ $label }}</option>
-                            @endforeach
-                            <option value="unclassified" @selected(request('cognitive_level') === 'unclassified')>Unclassified</option>
-                        </select>
-                    </div>
-
                     <div>
                         <x-input-label for="task" value="Task" icon="file-text" />
                         <x-text-input
@@ -155,7 +161,6 @@
                             placeholder="Task keyword"
                         />
                     </div>
-
                     <div>
                         <x-input-label for="technique" value="Technique" icon="file-text" />
                         <x-text-input
@@ -167,6 +172,20 @@
                             placeholder="Technique keyword"
                         />
                     </div>
+                    @endif
+
+                    @if (in_array($selectedProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP, \App\Models\Certification::PROFILE_ITIL], true))
+                    <div>
+                        <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
+                        <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            <option value="">All cognitive levels</option>
+                            @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
+                                <option value="{{ $value }}" @selected(request('cognitive_level') === $value)>{{ $label }}</option>
+                            @endforeach
+                            <option value="unclassified" @selected(request('cognitive_level') === 'unclassified')>Unclassified</option>
+                        </select>
+                    </div>
+                    @endif
 
                     <div class="flex items-end gap-3">
                         <x-primary-button>
@@ -223,6 +242,9 @@
                 </div>
 
                 @forelse ($questions as $question)
+                    @php
+                        $questionProfile = $question->classificationProfile();
+                    @endphp
                     <article class="rounded-md border border-gray-200 bg-white p-4 shadow-sm transition hover:border-teal-200 hover:shadow-md">
                         <div class="grid gap-4 lg:grid-cols-[auto,1fr,18rem] lg:items-start">
                             <div class="flex items-start gap-3 lg:block">
@@ -255,35 +277,55 @@
                                         <x-icon name="clipboard-list" class="h-3 w-3" />
                                         {{ $question->options_count }} option(s)
                                     </span>
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
-                                        <x-icon name="filter" class="h-3 w-3" />
-                                        {{ $question->lifecycleLabel() }}
-                                    </span>
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                                        <x-icon name="tag" class="h-3 w-3" />
-                                        {{ $question->ecoDomainLabel() }}
-                                    </span>
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                                        <x-icon name="tag" class="h-3 w-3" />
-                                        {{ $question->performanceDomainLabel() }}
-                                    </span>
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                        <x-icon name="clipboard-list" class="h-3 w-3" />
-                                        {{ $question->focusAreaLabel() }}
-                                    </span>
-                                    @if ($question->knowledge_area)
+                                    @if ($question->certificationName())
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
+                                            <x-icon name="award" class="h-3 w-3" />
+                                            {{ $question->certificationName() }}
+                                        </span>
+                                    @endif
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->lifecycle)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
+                                            <x-icon name="filter" class="h-3 w-3" />
+                                            {{ $question->lifecycleLabel() }}
+                                        </span>
+                                    @endif
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->eco_domain)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                            <x-icon name="tag" class="h-3 w-3" />
+                                            {{ $question->ecoDomainLabel() }}
+                                        </span>
+                                    @endif
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->domain)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                            <x-icon name="tag" class="h-3 w-3" />
+                                            {{ $question->performanceDomainLabel() }}
+                                        </span>
+                                    @endif
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_PMP], true) && $question->focus_area)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                            <x-icon name="clipboard-list" class="h-3 w-3" />
+                                            {{ $question->focusAreaLabel() }}
+                                        </span>
+                                    @endif
+                                    @if ($questionProfile === \App\Models\Certification::PROFILE_ITIL)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                            <x-icon name="tag" class="h-3 w-3" />
+                                            {{ $question->category->name }}
+                                        </span>
+                                    @endif
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true) && $question->knowledge_area)
                                         <span class="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">
                                             <x-icon name="award" class="h-3 w-3" />
                                             {{ $question->knowledgeAreaLabel() }}
                                         </span>
                                     @endif
-                                    @if ($question->perspective)
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP], true) && $question->perspective)
                                         <span class="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
                                             <x-icon name="filter" class="h-3 w-3" />
                                             {{ $question->perspectiveLabel() }}
                                         </span>
                                     @endif
-                                    @if ($question->cognitive_level)
+                                    @if (in_array($questionProfile, [\App\Models\Certification::PROFILE_GENERAL, \App\Models\Certification::PROFILE_CBAP, \App\Models\Certification::PROFILE_ITIL], true) && $question->cognitive_level)
                                         <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
                                             <x-icon name="filter" class="h-3 w-3" />
                                             {{ $question->cognitiveLevelLabel() }}

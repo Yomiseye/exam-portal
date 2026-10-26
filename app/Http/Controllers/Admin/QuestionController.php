@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Certification;
 use App\Models\Option;
 use App\Models\Question;
 use App\Models\QuestionTag;
@@ -27,7 +28,7 @@ class QuestionController extends Controller
         $perPage = $this->adminPageSize($request);
 
         $questions = Question::query()
-            ->with('category.parent', 'tags')
+            ->with('category.certification', 'category.parent.certification', 'tags')
             ->withCount('options')
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = '%'.$request->string('search')->trim()->toString().'%';
@@ -51,6 +52,14 @@ class QuestionController extends Controller
                 });
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('certification_id'), function ($query) use ($request): void {
+                $certificationId = $request->integer('certification_id');
+
+                $query->whereHas('category', function ($query) use ($certificationId): void {
+                    $query->where('certification_id', $certificationId)
+                        ->orWhereHas('parent', fn ($query) => $query->where('certification_id', $certificationId));
+                });
+            })
             ->when($request->filled('difficulty'), fn ($query) => $query->where('difficulty', $request->string('difficulty')->toString()))
             ->when($request->filled('lifecycle'), fn ($query) => $this->applyMetadataFilter($query, 'lifecycle', $request->string('lifecycle')->toString(), Question::LIFECYCLES))
             ->when($request->filled('eco_domain'), fn ($query) => $this->applyMetadataFilter($query, 'eco_domain', $request->string('eco_domain')->toString(), Question::ECO_DOMAINS))
@@ -66,12 +75,17 @@ class QuestionController extends Controller
             ->withQueryString();
 
         $categories = Category::query()
-            ->with('parent')
+            ->with('certification', 'parent.certification')
             ->whereNotNull('parent_id')
             ->orderBy('name')
             ->get();
 
-        return view('admin.questions.index', compact('questions', 'categories'));
+        $certifications = Certification::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.questions.index', compact('questions', 'categories', 'certifications'));
     }
 
     /**
@@ -292,7 +306,7 @@ class QuestionController extends Controller
      */
     public function edit(Question $question): View
     {
-        $question->load('category.parent', 'options', 'tags');
+        $question->load('category.certification', 'category.parent.certification', 'options', 'tags');
 
         return view('admin.questions.edit', [
             'question' => $question,
@@ -305,7 +319,7 @@ class QuestionController extends Controller
      */
     public function preview(Question $question): View
     {
-        $question->load(['category.parent', 'options', 'tags']);
+        $question->load(['category.certification', 'category.parent.certification', 'options', 'tags']);
 
         return view('admin.questions.preview', [
             'question' => $question,
@@ -1240,7 +1254,7 @@ class QuestionController extends Controller
     private function parentCategories()
     {
         return Category::query()
-            ->with(['subcategories' => fn ($query) => $query
+            ->with(['certification', 'subcategories' => fn ($query) => $query
                 ->where('is_active', true)
                 ->orderBy('name')])
             ->where('is_active', true)

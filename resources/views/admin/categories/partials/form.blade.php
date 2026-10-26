@@ -13,6 +13,20 @@
 </div>
 
 <div>
+    <x-input-label for="certification_id" value="Certification" icon="award" />
+    <select id="certification_id" name="certification_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <option value="">General question bank</option>
+        @foreach ($certifications as $certification)
+            <option value="{{ $certification->id }}" @selected((string) old('certification_id', $category?->certification_id) === (string) $certification->id)>
+                {{ $certification->name }} ({{ $certification->classificationProfileLabel() }})
+            </option>
+        @endforeach
+    </select>
+    <p class="mt-1 text-sm text-gray-500">Used only for a top-level category. Subcategories inherit their parent question bank's certification.</p>
+    <x-input-error class="mt-2" :messages="$errors->get('certification_id')" />
+</div>
+
+<div>
     <x-input-label for="parent_id" value="Parent Category" icon="tag" />
     <select id="parent_id" name="parent_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
         <option value="">No parent category</option>

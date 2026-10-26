@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Category;
+use App\Models\Certification;
 use App\Models\Question;
 use App\Models\User;
 use App\Services\QuestionImportSpreadsheet;
@@ -23,6 +24,46 @@ class QuestionManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.questions.index'))
             ->assertOk();
+    }
+
+    public function test_admin_can_filter_questions_by_certification(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $cbap = Certification::create([
+            'name' => 'CBAP',
+            'slug' => 'cbap',
+            'classification_profile' => Certification::PROFILE_CBAP,
+            'is_active' => true,
+        ]);
+        $itil = Certification::create([
+            'name' => 'ITIL',
+            'slug' => 'itil',
+            'classification_profile' => Certification::PROFILE_ITIL,
+            'is_active' => true,
+        ]);
+        $cbapParent = Category::create(['certification_id' => $cbap->id, 'name' => 'Business Analysis', 'is_active' => true]);
+        $cbapCategory = Category::create(['parent_id' => $cbapParent->id, 'name' => 'Strategy Analysis', 'is_active' => true]);
+        $itilParent = Category::create(['certification_id' => $itil->id, 'name' => 'ITIL Bank', 'is_active' => true]);
+        $itilCategory = Category::create(['parent_id' => $itilParent->id, 'name' => 'ITIL Value System', 'is_active' => true]);
+
+        Question::create([
+            'category_id' => $cbapCategory->id,
+            'question_text' => 'CBAP certification-filter question',
+            'difficulty' => 'medium',
+            'is_active' => true,
+        ]);
+        Question::create([
+            'category_id' => $itilCategory->id,
+            'question_text' => 'ITIL certification-filter question',
+            'difficulty' => 'medium',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.questions.index', ['certification_id' => $cbap->id]))
+            ->assertOk()
+            ->assertSee('CBAP certification-filter question')
+            ->assertDontSee('ITIL certification-filter question');
     }
 
     public function test_student_cannot_view_questions(): void

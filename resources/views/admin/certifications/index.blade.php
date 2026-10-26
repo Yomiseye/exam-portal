@@ -91,6 +91,9 @@
                                             @endif
                                             <div>
                                                 <div class="font-semibold text-gray-900">{{ $certification->name }}</div>
+                                                <span class="mt-1 inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">
+                                                    {{ $certification->classificationProfileLabel() }} classification
+                                                </span>
                                                 @if ($certification->description)
                                                     <div class="mt-1 max-w-xl text-gray-500">{{ \Illuminate\Support\Str::limit($certification->description, 120) }}</div>
                                                 @endif

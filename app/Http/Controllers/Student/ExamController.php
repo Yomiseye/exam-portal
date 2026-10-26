@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
+use App\Models\Certification;
 use App\Models\Exam;
 use App\Models\ExamAssignment;
 use App\Models\ExamRetakePermission;
@@ -365,6 +366,8 @@ class ExamController extends Controller
         $attempt->load([
             'exam',
             'answers.selectedOption',
+            'answers.question.category.certification',
+            'answers.question.category.parent.certification',
             'answers.question.options',
         ]);
 
@@ -378,45 +381,88 @@ class ExamController extends Controller
      */
     private function performanceAnalytics(Attempt $attempt): array
     {
-        return [
+        return collect([
             'lifecycle' => [
                 'title' => 'Lifecycle Performance',
                 'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
                     $answer->question->lifecycle ?? 'unclassified',
                     $answer->question->lifecycleLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'eco_domain' => [
                 'title' => 'Eco Domain Performance',
                 'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
                     $answer->question->eco_domain ?? 'unclassified',
                     $answer->question->ecoDomainLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'domain' => [
                 'title' => 'Performance Domain',
                 'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
                     $answer->question->domain ?? 'unclassified',
                     $answer->question->performanceDomainLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'focus_area' => [
                 'title' => 'Focus Area Performance',
                 'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
                     $answer->question->focus_area ?? 'unclassified',
                     $answer->question->focusAreaLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
-        ];
+            'knowledge_area' => [
+                'title' => 'Knowledge Area Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->knowledge_area ?? 'unclassified',
+                    $answer->question->knowledgeAreaLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'task' => [
+                'title' => 'Task Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->task ?? 'unclassified',
+                    $answer->question->task ?? 'Unclassified',
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'technique' => [
+                'title' => 'Technique Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->technique ?? 'unclassified',
+                    $answer->question->technique ?? 'Unclassified',
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'perspective' => [
+                'title' => 'Perspective Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->perspective ?? 'unclassified',
+                    $answer->question->perspectiveLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'itil_domain' => [
+                'title' => 'ITIL Domain Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    (string) ($answer->question->category_id ?? 'unclassified'),
+                    $answer->question->category?->name ?? 'Unclassified',
+                ], [Certification::PROFILE_ITIL]),
+            ],
+            'cognitive_level' => [
+                'title' => 'Cognitive Level Performance',
+                'rows' => $this->analyticsRows($attempt, fn (AttemptAnswer $answer) => [
+                    $answer->question->cognitive_level ?? 'unclassified',
+                    $answer->question->cognitiveLevelLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP, Certification::PROFILE_ITIL]),
+            ],
+        ])->filter(fn (array $section) => $section['rows'] !== [])->all();
     }
 
     /**
      * @param  callable(AttemptAnswer): array{0: string, 1: string}  $classifier
      * @return array<int, array{label: string, correct: int, total: int, percentage: int, status: string}>
      */
-    private function analyticsRows(Attempt $attempt, callable $classifier): array
+    private function analyticsRows(Attempt $attempt, callable $classifier, array $profiles): array
     {
         return $attempt->answers
+            ->filter(fn (AttemptAnswer $answer) => in_array($answer->question->classificationProfile(), $profiles, true))
             ->filter(fn (AttemptAnswer $answer) => ! $this->isUnclassifiedAnalyticsKey($classifier($answer)[0]))
             ->groupBy(fn (AttemptAnswer $answer) => $classifier($answer)[0])
             ->map(function ($answers) use ($classifier): array {

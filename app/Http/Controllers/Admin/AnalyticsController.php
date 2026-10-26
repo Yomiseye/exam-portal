@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
+use App\Models\Certification;
 use App\Models\Exam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnalyticsController extends Controller
 {
@@ -22,14 +23,20 @@ class AnalyticsController extends Controller
 
         $answers = $attempts
             ->flatMap(fn (Attempt $attempt) => $attempt->answers);
+        $answers = $this->filteredAnswers($answers, $filters);
 
         $exams = Exam::query()
             ->orderBy('title')
+            ->get();
+        $certifications = Certification::query()
+            ->where('is_active', true)
+            ->orderBy('name')
             ->get();
 
         return view('admin.analytics.index', [
             'attempts' => $attempts,
             'exams' => $exams,
+            'certifications' => $certifications,
             'filters' => $filters,
             'summary' => $this->summary($attempts),
             'statusRows' => $this->statusRows($attempts),
@@ -45,8 +52,11 @@ class AnalyticsController extends Controller
     {
         abort_unless(in_array($report, ['summary', 'students', 'missed-questions'], true), 404);
 
-        [, $attempts] = $this->filteredAttempts($request);
-        $answers = $attempts->flatMap(fn (Attempt $attempt) => $attempt->answers);
+        [$filters, $attempts] = $this->filteredAttempts($request);
+        $answers = $this->filteredAnswers(
+            $attempts->flatMap(fn (Attempt $attempt) => $attempt->answers),
+            $filters,
+        );
         $filename = 'testportal-'.$report.'-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($report, $attempts, $answers): void {
@@ -118,6 +128,7 @@ class AnalyticsController extends Controller
     {
         $filters = $request->validate([
             'exam_id' => ['nullable', 'integer', 'exists:exams,id'],
+            'certification_id' => ['nullable', 'integer', 'exists:certifications,id'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
         ]);
@@ -126,16 +137,37 @@ class AnalyticsController extends Controller
             ->with([
                 'exam',
                 'user.studentGroup',
+                'answers.question.category.certification',
+                'answers.question.category.parent.certification',
                 'answers.question.options',
             ])
             ->whereIn('status', ['passed', 'failed'])
             ->when($filters['exam_id'] ?? null, fn ($query, $examId) => $query->where('exam_id', $examId))
+            ->when($filters['certification_id'] ?? null, function ($query, $certificationId): void {
+                $query->whereHas('answers.question.category', function ($query) use ($certificationId): void {
+                    $query->where('certification_id', $certificationId)
+                        ->orWhereHas('parent', fn ($query) => $query->where('certification_id', $certificationId));
+                });
+            })
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('submitted_at', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('submitted_at', '<=', $date))
             ->latest('submitted_at')
             ->get();
 
         return [$filters, $attempts];
+    }
+
+    private function filteredAnswers(Collection $answers, array $filters): Collection
+    {
+        if (empty($filters['certification_id'])) {
+            return $answers;
+        }
+
+        $certificationId = (int) $filters['certification_id'];
+
+        return $answers
+            ->filter(fn (AttemptAnswer $answer) => $answer->question->certificationId() === $certificationId)
+            ->values();
     }
 
     /**
@@ -261,36 +293,78 @@ class AnalyticsController extends Controller
      */
     private function metadataSections(Collection $answers): array
     {
-        return [
+        return collect([
             'lifecycle' => [
                 'title' => 'Lifecycle',
                 'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
                     $answer->question->lifecycle ?? 'unclassified',
                     $answer->question->lifecycleLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'eco_domain' => [
                 'title' => 'Eco Domain',
                 'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
                     $answer->question->eco_domain ?? 'unclassified',
                     $answer->question->ecoDomainLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'performance_domain' => [
                 'title' => 'Performance Domain',
                 'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
                     $answer->question->domain ?? 'unclassified',
                     $answer->question->performanceDomainLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
             'focus_area' => [
                 'title' => 'Focus Area',
                 'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
                     $answer->question->focus_area ?? 'unclassified',
                     $answer->question->focusAreaLabel(),
-                ]),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_PMP]),
             ],
-        ];
+            'knowledge_area' => [
+                'title' => 'CBAP Knowledge Area',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    $answer->question->knowledge_area ?? 'unclassified',
+                    $answer->question->knowledgeAreaLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'task' => [
+                'title' => 'CBAP Task',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    $answer->question->task ?? 'unclassified',
+                    $answer->question->task ?? 'Unclassified',
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'technique' => [
+                'title' => 'CBAP Technique',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    $answer->question->technique ?? 'unclassified',
+                    $answer->question->technique ?? 'Unclassified',
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'perspective' => [
+                'title' => 'CBAP Perspective',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    $answer->question->perspective ?? 'unclassified',
+                    $answer->question->perspectiveLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP]),
+            ],
+            'itil_domain' => [
+                'title' => 'ITIL Domain',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    (string) ($answer->question->category_id ?? 'unclassified'),
+                    $answer->question->category?->name ?? 'Unclassified',
+                ], [Certification::PROFILE_ITIL]),
+            ],
+            'cognitive_level' => [
+                'title' => 'Cognitive Level',
+                'rows' => $this->answerRows($answers, fn (AttemptAnswer $answer) => [
+                    $answer->question->cognitive_level ?? 'unclassified',
+                    $answer->question->cognitiveLevelLabel(),
+                ], [Certification::PROFILE_GENERAL, Certification::PROFILE_CBAP, Certification::PROFILE_ITIL]),
+            ],
+        ])->filter(fn (array $section) => $section['rows'] !== [])->all();
     }
 
     /**
@@ -298,9 +372,11 @@ class AnalyticsController extends Controller
      * @param  callable(AttemptAnswer): array{0: string, 1: string}  $classifier
      * @return array<int, array{label: string, correct: int, total: int, percentage: int, status: string}>
      */
-    private function answerRows(Collection $answers, callable $classifier): array
+    private function answerRows(Collection $answers, callable $classifier, array $profiles): array
     {
         return $answers
+            ->filter(fn (AttemptAnswer $answer) => in_array($answer->question->classificationProfile(), $profiles, true))
+            ->filter(fn (AttemptAnswer $answer) => ! $this->isUnclassifiedAnalyticsKey($classifier($answer)[0]))
             ->groupBy(fn (AttemptAnswer $answer) => $classifier($answer)[0])
             ->map(function (Collection $groupedAnswers) use ($classifier): array {
                 $firstAnswer = $groupedAnswers->first();
@@ -319,6 +395,11 @@ class AnalyticsController extends Controller
             ->sortBy('percentage')
             ->values()
             ->all();
+    }
+
+    private function isUnclassifiedAnalyticsKey(?string $key): bool
+    {
+        return blank($key) || strtolower(trim($key)) === 'unclassified';
     }
 
     /**

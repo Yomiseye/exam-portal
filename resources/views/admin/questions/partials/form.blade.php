@@ -6,6 +6,8 @@
         ->map(fn ($category) => [
             'id' => $category->id,
             'name' => $category->name,
+            'certification_name' => $category->certification?->name,
+            'classification_profile' => $category->certification?->classification_profile ?? \App\Models\Certification::PROFILE_GENERAL,
             'subcategories' => $category->subcategories
                 ->map(fn ($subcategory) => [
                     'id' => $subcategory->id,
@@ -164,6 +166,12 @@
         subcategories() {
             return this.categories.find((category) => category.id === this.categoryId)?.subcategories ?? [];
         },
+        selectedCategory() {
+            return this.categories.find((category) => category.id === this.categoryId) ?? null;
+        },
+        classificationProfile() {
+            return this.selectedCategory()?.classification_profile ?? 'general';
+        },
         addOption() {
             this.options.push({ text: '', match_text: '', image_path: null, image_url: null });
         },
@@ -245,6 +253,12 @@
     </div>
 </div>
 
+<div x-show="selectedCategory()?.certification_name" x-cloak class="rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+    <span class="font-semibold" x-text="selectedCategory()?.certification_name"></span>
+    <span class="text-teal-700">question bank</span>
+    <span class="ms-2 rounded-full bg-white px-2 py-0.5 text-xs font-semibold uppercase" x-text="classificationProfile()"></span>
+</div>
+
 <div class="grid gap-6 md:grid-cols-2">
     <div>
         <x-input-label for="question_type" value="Question Type" icon="circle-help" />
@@ -269,7 +283,11 @@
     </div>
 </div>
 
-<div class="grid gap-6 md:grid-cols-4">
+<div
+    x-show="['general', 'pmp'].includes(classificationProfile())"
+    x-cloak
+    class="grid gap-6 md:grid-cols-4"
+>
     <div>
         <x-input-label for="lifecycle" value="Lifecycle" icon="filter" />
         <select id="lifecycle" name="lifecycle" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
@@ -323,7 +341,11 @@
     </div>
 </div>
 
-<div class="rounded-md border border-sky-100 bg-sky-50/70 p-4">
+<div
+    x-show="['general', 'cbap'].includes(classificationProfile())"
+    x-cloak
+    class="rounded-md border border-sky-100 bg-sky-50/70 p-4"
+>
     <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h3 class="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sky-900">
@@ -387,19 +409,28 @@
             <x-input-error class="mt-2" :messages="$errors->get('perspective')" />
         </div>
 
-        <div>
-            <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
-            <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                <option value="">Choose cognitive level</option>
-                @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
-                    <option value="{{ $value }}" @selected(old('cognitive_level', $question?->cognitive_level) === $value)>
-                        {{ $label }}
-                    </option>
-                @endforeach
-            </select>
-            <x-input-error class="mt-2" :messages="$errors->get('cognitive_level')" />
-        </div>
     </div>
+</div>
+
+<div x-show="classificationProfile() === 'itil'" x-cloak class="rounded-md border border-amber-200 bg-amber-50 p-4">
+    <h3 class="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-900">
+        <x-icon name="award" class="h-4 w-4 text-amber-700" />
+        ITIL Classification
+    </h3>
+    <p class="mt-1 text-sm text-amber-800">The selected subcategory is used as the ITIL exam domain.</p>
+</div>
+
+<div x-show="['general', 'cbap', 'itil'].includes(classificationProfile())" x-cloak>
+    <x-input-label for="cognitive_level" value="Cognitive Level" icon="filter" />
+    <select id="cognitive_level" name="cognitive_level" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+        <option value="">Choose cognitive level</option>
+        @foreach (\App\Models\Question::COGNITIVE_LEVELS as $value => $label)
+            <option value="{{ $value }}" @selected(old('cognitive_level', $question?->cognitive_level) === $value)>
+                {{ $label }}
+            </option>
+        @endforeach
+    </select>
+    <x-input-error class="mt-2" :messages="$errors->get('cognitive_level')" />
 </div>
 
 <div>

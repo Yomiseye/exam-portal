@@ -167,6 +167,21 @@ class Question extends Model
         return self::COGNITIVE_LEVELS[$this->cognitive_level] ?? 'Unclassified';
     }
 
+    public function classificationProfile(): string
+    {
+        return $this->category?->classificationProfile() ?? Certification::PROFILE_GENERAL;
+    }
+
+    public function certificationName(): ?string
+    {
+        return $this->category?->certificationName();
+    }
+
+    public function certificationId(): ?int
+    {
+        return $this->category?->certificationId();
+    }
+
     public function imageUrl(): ?string
     {
         return $this->image_path

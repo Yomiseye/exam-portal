@@ -79,7 +79,12 @@
                             @forelse ($categories as $category)
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {{ $category->parent ? '— '.$category->name : $category->name }}
+                                        <div>{{ $category->parent ? '— '.$category->name : $category->name }}</div>
+                                        @if ($category->certificationName())
+                                            <div class="mt-1 text-xs font-normal text-teal-700">
+                                                {{ $category->certificationName() }} - {{ strtoupper($category->classificationProfile()) }}
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $category->parent?->name ?? 'Top level' }}

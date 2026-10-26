@@ -14,6 +14,24 @@
 </div>
 
 <div>
+    <x-input-label for="classification_profile" value="Question Classification Profile" icon="filter" />
+    <select
+        id="classification_profile"
+        name="classification_profile"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        required
+    >
+        @foreach (\App\Models\Certification::CLASSIFICATION_PROFILES as $value => $label)
+            <option value="{{ $value }}" @selected(old('classification_profile', $certification?->classification_profile ?? \App\Models\Certification::PROFILE_GENERAL) === $value)>
+                {{ $label }}
+            </option>
+        @endforeach
+    </select>
+    <p class="mt-1 text-sm text-gray-500">Controls which question metadata and analytics are used for this certification.</p>
+    <x-input-error class="mt-2" :messages="$errors->get('classification_profile')" />
+</div>
+
+<div>
     <x-input-label for="description" value="Description" icon="file-text" />
     <textarea
         id="description"
